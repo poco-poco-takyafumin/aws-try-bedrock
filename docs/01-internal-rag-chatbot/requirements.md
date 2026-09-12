@@ -36,7 +36,9 @@
 - Denied topics: 特に制限なし（家庭内利用のため業務外話題の制限は不要。登録文書の範囲内に質問が自然に収まる想定）
 - PII filters（ブロック/マスク、対象エンティティ）:
   - 銀行口座番号・保険証券番号等の機密PIIを検出した場合は**本文中の値はブロック/マスク**し、代わりに**出典（Knowledge Baseの引用・元文書へのリンク）を提示**する（ユーザーは元文書側の正規のアクセス経路で確認する）
-  - データフローの確認結果: 生データ（PII含む）はモデル呼び出し時にBedrock内のClaudeモデルには渡る（AWS外部には出ない）。Guardrailsは出力段でのマスク/ブロックが基本。Model invocation loggingにより生ログはAWSアカウント内（CloudWatch Logs/S3）に保存されるため、ログ側のマスキング要否は「ログ出力先」の人間レビュー時に別途決定する
+  - データフローの確認結果: 生データ（PII含む）はモデル呼び出し時にBedrock内のClaudeモデルには渡る（AWS外部には出ない）。Guardrailsは出力段でのマスク/ブロックが基本。Model invocation loggingにより生ログはAWSアカウント内（CloudWatch Logs/S3）に保存される
+  - **確認済み事実**（[AWS公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-filters.html)）: Model invocation loggingの`input`フィールドには、Guardrailsのマスク/ブロックに関わらず**マスク前の元データがそのまま記録される**。ブロックされたコンテンツも平文でログに残る。マスクされた値がログに反映されるわけではない
+  - → ログ内のPII保護には別途 **CloudWatch Logs data protection**（機密データマスキング機能）の有効化が必要。この設定自体は`docs/00`の「ログ出力先（人間レビュー必須）」に該当するため、具体的な設定は実装セッションで確定・レビューする
   - 対象エンティティの詳細: Bedrock Guardrailsの標準PIIエンティティを広く適用（銀行口座番号・クレジットカード番号・住所・電話番号・氏名・Email等）。家族の氏名等が日常会話で頻出し過剰検知の可能性がある点は運用しながら調整
 - Contextual grounding check（RAG構成のため基本必須）: しきい値=厳しめ（高しきい値）。銀行口座・保険等の正確性が重要な情報を扱うため、根拠のない推論回答は厳しくブロックする方針
 
@@ -53,7 +55,9 @@
   - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
   - この同期処理を、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する想定
   - Google Drive連携の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**を採用
-  - 同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダIDはTerraformにハードコードせず、**AWS Systems Manager Parameter Store**にパラメータとして格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）。認可スコープの詳細（Parameter StoreのString/SecureString使い分け含む）は次回実装セッションで確定
+  - 同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
+  - サービスアカウントの秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
+  - OAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
   - 同期頻度: PoC初期は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
 
 ## アーキテクチャ
@@ -62,7 +66,6 @@
 
 ## 未決事項
 
-- Model invocation loggingにおいて、マスク済みPIIがログ側にも反映されるか（AWS側の挙動を実装セッションで要確認。ログ出力先は人間レビュー必須項目）
-- Google Drive連携のParameter Store設計詳細（String/SecureString使い分け、サービスアカウント認可スコープの具体的なOAuthスコープ値）
+- CloudWatch Logs data protectionの具体的な設定（ログ内PII保護。`docs/00`の「ログ出力先」人間レビュー必須項目として実装セッションで確定）
 - 企業導入時に想定される「社内規程・契約・法令」の具体的な裏付け（今回は個人/家庭文脈の理由を記載。企業展開フェーズで別途確認）
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
