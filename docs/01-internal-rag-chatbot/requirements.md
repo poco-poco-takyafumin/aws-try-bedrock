@@ -38,7 +38,7 @@
   - 銀行口座番号・保険証券番号等の機密PIIを検出した場合は**本文中の値はブロック/マスク**し、代わりに**出典（Knowledge Baseの引用・元文書へのリンク）を提示**する（ユーザーは元文書側の正規のアクセス経路で確認する）
   - データフローの確認結果: 生データ（PII含む）はモデル呼び出し時にBedrock内のClaudeモデルには渡る（AWS外部には出ない）。Guardrailsは出力段でのマスク/ブロックが基本。Model invocation loggingにより生ログはAWSアカウント内（CloudWatch Logs/S3）に保存される
   - **確認済み事実**（[AWS公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-filters.html)）: Model invocation loggingの`input`フィールドには、Guardrailsのマスク/ブロックに関わらず**マスク前の元データがそのまま記録される**。ブロックされたコンテンツも平文でログに残る。マスクされた値がログに反映されるわけではない
-  - → ログ内のPII保護には別途 **CloudWatch Logs data protection**（機密データマスキング機能）の有効化が必要。この設定自体は`docs/00`の「ログ出力先（人間レビュー必須）」に該当するため、具体的な設定は実装セッションで確定・レビューする
+  - → ログ内のPII保護には別途 **CloudWatch Logs data protection**（機密データマスキング機能）の有効化が必要。保護範囲は**金融情報系＋PII系のmanaged data identifiersを広く有効化**する方針（Guardrails側の「標準PIIエンティティを広く適用」と一貫させる）。実際の設定・ポリシー内容は`docs/00`の「ログ出力先（人間レビュー必須）」に該当するため、具体的な設定・diffは実装セッションでレビューする
   - 対象エンティティの詳細: Bedrock Guardrailsの標準PIIエンティティを広く適用（銀行口座番号・クレジットカード番号・住所・電話番号・氏名・Email等）。家族の氏名等が日常会話で頻出し過剰検知の可能性がある点は運用しながら調整
 - Contextual grounding check（RAG構成のため基本必須）: しきい値=厳しめ（高しきい値）。銀行口座・保険等の正確性が重要な情報を扱うため、根拠のない推論回答は厳しくブロックする方針
 
@@ -66,6 +66,6 @@
 
 ## 未決事項
 
-- CloudWatch Logs data protectionの具体的な設定（ログ内PII保護。`docs/00`の「ログ出力先」人間レビュー必須項目として実装セッションで確定）
+- CloudWatch Logs data protectionの具体的なポリシー内容・diff（方針＝金融情報＋PII系識別子を広く有効化、は確定済み。実際の設定は`docs/00`の「ログ出力先」人間レビュー必須項目として実装セッションでレビュー）
 - 企業導入時に想定される「社内規程・契約・法令」の具体的な裏付け（今回は個人/家庭文脈の理由を記載。企業展開フェーズで別途確認）
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
