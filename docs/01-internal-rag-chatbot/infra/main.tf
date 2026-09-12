@@ -15,6 +15,7 @@ module "knowledge_base" {
 
   kb_name                = "${local.name_prefix}-kb"
   kb_s3_bucket_name      = aws_s3_bucket.kb_data.bucket
+  kb_kms_key_arn         = aws_kms_key.kb_data.arn
   kb_oss_collection_name = "${local.name_prefix}-oss"
   kb_model_id            = var.kb_embedding_model_id
   chunking_strategy      = "DEFAULT"
@@ -57,6 +58,7 @@ module "logging" {
 
   name_prefix        = local.name_prefix
   auditor_role_arn   = module.iam.auditor_role_arn
+  auditor_role_name  = module.iam.auditor_role_name
   log_retention_days = 365
   tags               = local.common_tags
 }
@@ -79,7 +81,7 @@ module "backend" {
   app_runtime_role_arn  = module.iam.app_runtime_role_arn
   knowledge_base_id     = module.knowledge_base.knowledge_base_id
   inference_profile_arn = module.cost.inference_profile_arn
-  guardrail_id          = module.guardrails.guardrail_id
+  guardrail_arn         = module.guardrails.guardrail_arn
   guardrail_version     = module.guardrails.guardrail_version
   tags                  = local.common_tags
 }

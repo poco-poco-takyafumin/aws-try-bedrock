@@ -15,8 +15,13 @@ variable "inference_profile_arn" {
   type = string
 }
 
-variable "guardrail_id" {
-  type = string
+variable "guardrail_arn" {
+  description = <<-EOT
+    GuardrailのARN（IDではなくARN）。modules/iamのAppRuntimeロールのIAM Condition
+    (bedrock:GuardrailIdentifier) がARNと比較しているため、アプリ側もARNを渡して
+    一致させる必要がある（レビュー指摘対応: 以前はIDのみ渡しておりIAM Denyと不一致だった）。
+  EOT
+  type        = string
 }
 
 variable "guardrail_version" {

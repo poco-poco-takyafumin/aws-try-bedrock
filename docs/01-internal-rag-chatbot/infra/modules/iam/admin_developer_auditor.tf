@@ -58,9 +58,38 @@ resource "aws_iam_role_policy" "admin" {
         Resource = "*"
       },
       {
-        Sid      = "LoggingConfig"
-        Effect   = "Allow"
-        Action   = ["cloudtrail:*", "logs:*", "s3:GetBucketPolicy", "s3:PutBucketPolicy"]
+        # レビュー指摘対応: 以前は logs:* / cloudtrail:* のワイルドカードで
+        # ログ「内容」の読み取り（logs:GetLogEvents, logs:FilterLogEvents,
+        # logs:GetLogRecord, logs:StartQuery/GetQueryResults, cloudtrail:LookupEvents 等）
+        # まで許可してしまっていた。docs/00「ログへの読み取り権限はAuditorロールのみに
+        # 付与する」に反するため、設定変更系アクションのみに絞り込む。
+        Sid    = "LoggingConfig"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:PutRetentionPolicy",
+          "logs:DeleteRetentionPolicy",
+          "logs:DescribeLogGroups",
+          "logs:PutDataProtectionPolicy",
+          "logs:DeleteDataProtectionPolicy",
+          "logs:GetDataProtectionPolicy",
+          "logs:TagResource",
+          "logs:UntagResource",
+          "cloudtrail:CreateTrail",
+          "cloudtrail:UpdateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:StartLogging",
+          "cloudtrail:StopLogging",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:GetEventSelectors",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:AddTags",
+          "cloudtrail:RemoveTags",
+          "s3:GetBucketPolicy",
+          "s3:PutBucketPolicy"
+        ]
         Resource = "*"
       },
       {

@@ -17,6 +17,15 @@ variable "kb_s3_bucket_name" {
   type        = string
 }
 
+variable "kb_kms_key_arn" {
+  description = <<-EOT
+    KBデータS3バケットの暗号化に使うKMSキーARN（ルートのkms.tf）。
+    バケットはSSE-KMSで暗号化されているため、KB実行ロールにもkms:Decrypt権限が必要
+    （レビュー指摘対応: 以前はこの権限が欠落しており取り込みがAccessDeniedになっていた）。
+  EOT
+  type        = string
+}
+
 variable "kb_oss_collection_name" {
   description = "OpenSearch Serverlessコレクション名。"
   type        = string

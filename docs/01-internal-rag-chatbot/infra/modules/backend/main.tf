@@ -28,7 +28,7 @@ resource "aws_lambda_function" "this" {
     variables = {
       KNOWLEDGE_BASE_ID     = var.knowledge_base_id
       INFERENCE_PROFILE_ARN = var.inference_profile_arn
-      GUARDRAIL_ID          = var.guardrail_id
+      GUARDRAIL_ARN         = var.guardrail_arn
       GUARDRAIL_VERSION     = var.guardrail_version
     }
   }

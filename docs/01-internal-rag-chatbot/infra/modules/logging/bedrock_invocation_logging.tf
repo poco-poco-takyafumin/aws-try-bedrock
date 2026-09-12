@@ -19,6 +19,21 @@ resource "aws_cloudwatch_log_group" "bedrock_invocation" {
   tags              = var.tags
 }
 
+locals {
+  # レビュー指摘対応: audit/redact両ステートメントで同一リストを二重管理していたのを一本化。
+  pii_data_identifiers = [
+    "arn:aws:dataprotection::aws:data-identifier/BankAccountNumber-JP",
+    "arn:aws:dataprotection::aws:data-identifier/Address-JP",
+    "arn:aws:dataprotection::aws:data-identifier/PhoneNumber-JP",
+    "arn:aws:dataprotection::aws:data-identifier/CreditCardNumber",
+    "arn:aws:dataprotection::aws:data-identifier/CreditCardExpiration",
+    "arn:aws:dataprotection::aws:data-identifier/CreditCardSecurityCode",
+    "arn:aws:dataprotection::aws:data-identifier/SwiftCode",
+    "arn:aws:dataprotection::aws:data-identifier/Name",
+    "arn:aws:dataprotection::aws:data-identifier/EmailAddress"
+  ]
+}
+
 resource "aws_cloudwatch_log_data_protection_policy" "bedrock_invocation" {
   log_group_name = aws_cloudwatch_log_group.bedrock_invocation.name
 
@@ -27,18 +42,8 @@ resource "aws_cloudwatch_log_data_protection_policy" "bedrock_invocation" {
     Version = "2021-06-01"
     Statement = [
       {
-        Sid = "audit-financial-pii"
-        DataIdentifier = [
-          "arn:aws:dataprotection::aws:data-identifier/BankAccountNumber-JP",
-          "arn:aws:dataprotection::aws:data-identifier/Address-JP",
-          "arn:aws:dataprotection::aws:data-identifier/PhoneNumber-JP",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardNumber",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardExpiration",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardSecurityCode",
-          "arn:aws:dataprotection::aws:data-identifier/SwiftCode",
-          "arn:aws:dataprotection::aws:data-identifier/Name",
-          "arn:aws:dataprotection::aws:data-identifier/EmailAddress"
-        ]
+        Sid            = "audit-financial-pii"
+        DataIdentifier = local.pii_data_identifiers
         Operation = {
           Audit = {
             FindingsDestination = {}
@@ -46,18 +51,8 @@ resource "aws_cloudwatch_log_data_protection_policy" "bedrock_invocation" {
         }
       },
       {
-        Sid = "redact-financial-pii"
-        DataIdentifier = [
-          "arn:aws:dataprotection::aws:data-identifier/BankAccountNumber-JP",
-          "arn:aws:dataprotection::aws:data-identifier/Address-JP",
-          "arn:aws:dataprotection::aws:data-identifier/PhoneNumber-JP",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardNumber",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardExpiration",
-          "arn:aws:dataprotection::aws:data-identifier/CreditCardSecurityCode",
-          "arn:aws:dataprotection::aws:data-identifier/SwiftCode",
-          "arn:aws:dataprotection::aws:data-identifier/Name",
-          "arn:aws:dataprotection::aws:data-identifier/EmailAddress"
-        ]
+        Sid            = "redact-financial-pii"
+        DataIdentifier = local.pii_data_identifiers
         Operation = {
           Deidentify = {
             MaskConfig = {}
@@ -125,6 +120,10 @@ resource "aws_bedrock_model_invocation_logging_configuration" "this" {
 
   depends_on = [
     aws_iam_role_policy.bedrock_logging_cw,
-    aws_s3_bucket_policy.logs
+    aws_s3_bucket_policy.logs,
+    # レビュー指摘対応: data protectionポリシーが先に適用されるよう明示的に依存させる
+    # （適用順序が入れ替わると、マスキングされていない生ログがCloudWatch Logsに
+    # 書き込まれる窓が生じうるため）。
+    aws_cloudwatch_log_data_protection_policy.bedrock_invocation
   ]
 }

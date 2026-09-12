@@ -17,3 +17,7 @@ output "developer_role_arn" {
 output "auditor_role_arn" {
   value = aws_iam_role.auditor.arn
 }
+
+output "auditor_role_name" {
+  value = aws_iam_role.auditor.name
+}

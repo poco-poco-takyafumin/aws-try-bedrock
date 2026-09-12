@@ -96,6 +96,14 @@ resource "aws_iam_role_policy" "kb_execution_s3" {
         Condition = {
           StringEquals = { "aws:ResourceAccount" = local.account_id }
         }
+      },
+      {
+        # レビュー指摘対応: データソースバケットはSSE-KMSで暗号化されているため、
+        # s3:GetObjectだけでなくKMS復号権限も必要。
+        Sid      = "KmsDecryptStatement"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Effect   = "Allow"
+        Resource = var.kb_kms_key_arn
       }
     ]
   })

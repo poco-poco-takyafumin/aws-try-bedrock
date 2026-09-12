@@ -36,10 +36,21 @@ resource "aws_iam_role_policy" "app_runtime_bedrock" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "AllowKnowledgeBaseRetrieve"
+        # レビュー指摘対応: バックエンドの実際の呼び出し経路である RetrieveAndGenerate に
+        # Guardrail指定を強制するConditionを付与する（InvokeModel側の強制だけでは
+        # このAPIを経由するGuardrail未適用呼び出しを防げなかったため）。
+        # 単純な bedrock:Retrieve（生成なし・Guardrail非対応）はこのユースケースの
+        # バックエンド実装では使わないため許可しない（modules/backend/src/handler.pyのdocstring参照）。
+        Sid      = "AllowKnowledgeBaseRetrieveAndGenerateWithGuardrailOnly"
         Effect   = "Allow"
-        Action   = ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"]
+        Action   = "bedrock:RetrieveAndGenerate"
         Resource = var.knowledge_base_arn
+        Condition = {
+          StringEquals = {
+            "bedrock:GuardrailIdentifier" = var.guardrail_arn
+            "bedrock:GuardrailVersion"    = var.guardrail_version
+          }
+        }
       },
       {
         Sid    = "AllowInvokeWithGuardrailOnly"
@@ -69,7 +80,8 @@ resource "aws_iam_role_policy" "app_runtime_bedrock" {
         Effect = "Deny"
         Action = [
           "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream"
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:RetrieveAndGenerate"
         ]
         Resource = "*"
         Condition = {

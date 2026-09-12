@@ -40,6 +40,30 @@ resource "aws_kms_key" "logs" {
             "aws:SourceAccount" = data.aws_caller_identity.this.account_id
           }
         }
+      },
+      {
+        # レビュー指摘対応: CloudWatch Logsロググループ（Model invocation logging用）が
+        # このキーで暗号化する設定（aws_cloudwatch_log_group.kms_key_id）になっているが、
+        # CloudWatch Logsサービスプリンシパルへの許可が欠けていたため追加。
+        # リージョン別のサービスプリンシパル（logs.<region>.amazonaws.com）を使う必要がある。
+        Sid    = "AllowCloudWatchLogsEncrypt"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.this.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+        Condition = {
+          ArnLike = {
+            "kms:EncryptionContext:aws:logs:arn" = "arn:${data.aws_partition.this.partition}:logs:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:log-group:*"
+          }
+        }
       }
     ]
   })
@@ -48,6 +72,27 @@ resource "aws_kms_key" "logs" {
 resource "aws_kms_alias" "logs" {
   name          = "alias/${var.name_prefix}-logs"
   target_key_id = aws_kms_key.logs.key_id
+}
+
+# Auditorロールへのログ閲覧権限（KMS復号）。
+# このキーの鍵ポリシー（EnableRootAccountPermissions）がアカウントルートにkms:*を
+# 委譲しているため、IAM側のアイデンティティポリシーでの許可のみで足り、
+# 鍵ポリシー自体の追加変更は不要（modules/iamとの循環依存も回避できる）。
+resource "aws_iam_role_policy" "auditor_kms_decrypt" {
+  count = var.auditor_role_name == null ? 0 : 1
+  name  = "${var.name_prefix}-auditor-logs-kms-decrypt"
+  role  = var.auditor_role_name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowDecryptLogsKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = aws_kms_key.logs.arn
+      }
+    ]
+  })
 }
 
 data "aws_caller_identity" "this" {}
