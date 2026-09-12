@@ -24,7 +24,7 @@
 - [x] 扱う文書の機密度・件数・更新頻度:
   - 機密情報・PIIを含む文書も対象（銀行、アカウント情報、取扱説明書、保険、経費など）
   - 更新頻度: 高頻度
-  - 件数: 未定（未決事項へ）
+  - 件数: 数十〜数百件程度（家庭規模の共有フォルダを想定）
 
 ## リージョン・推論プロファイル方針
 
@@ -37,22 +37,24 @@
 - PII filters（ブロック/マスク、対象エンティティ）:
   - 銀行口座番号・保険証券番号等の機密PIIを検出した場合は**本文中の値はブロック/マスク**し、代わりに**出典（Knowledge Baseの引用・元文書へのリンク）を提示**する（ユーザーは元文書側の正規のアクセス経路で確認する）
   - データフローの確認結果: 生データ（PII含む）はモデル呼び出し時にBedrock内のClaudeモデルには渡る（AWS外部には出ない）。Guardrailsは出力段でのマスク/ブロックが基本。Model invocation loggingにより生ログはAWSアカウント内（CloudWatch Logs/S3）に保存されるため、ログ側のマスキング要否は「ログ出力先」の人間レビュー時に別途決定する
-  - 対象エンティティの詳細（住所・電話番号等の扱い含む）: 未定（次回確認）
+  - 対象エンティティの詳細: Bedrock Guardrailsの標準PIIエンティティを広く適用（銀行口座番号・クレジットカード番号・住所・電話番号・氏名・Email等）。家族の氏名等が日常会話で頻出し過剰検知の可能性がある点は運用しながら調整
 - Contextual grounding check（RAG構成のため基本必須）: しきい値=厳しめ（高しきい値）。銀行口座・保険等の正確性が重要な情報を扱うため、根拠のない推論回答は厳しくブロックする方針
 
 ## IAMロール
 
-- このユースケース用AppRuntimeロール名: 未定（次回実装セッションで命名）
-- 呼び出し元（Lambda/ECS等）: 単一バックエンド（API Gateway+Lambda or ECS等、次回実装セッションで確定）経由で、Slack app・チャットUI（Web）・CLI・プログラムからの呼び出しを一元的に受ける構成とする。各IFが個別にBedrockへ直接アクセスしない（docs/00の「1ユースケース=1ロール」原則、Guardrails適用・ログ記録の一元化のため）
+- このユースケース用AppRuntimeロール名: `bedrock-approntime-internal-rag-chatbot`
+- 呼び出し元（Lambda/ECS等）: **API Gateway + Lambda（サーバーレス）**を単一バックエンドとし、Slack app・チャットUI（Web）・CLI・プログラムからの呼び出しを一元的に受ける構成とする。各IFが個別にBedrockへ直接アクセスしない（docs/00の「1ユースケース=1ロール」原則、Guardrails適用・ログ記録の一元化のため）
 
 ## 採用リポジトリ・実装方針
 
-- 土台とするリポジトリ: 未定。Knowledge Base部分は `aws-samples/sample-bedrock-knowledge-base-terraform`（S3/OpenSearch Serverless/Knowledge Base）が候補だが、次回実装セッションで最終判断する
+- 土台とするリポジトリ: **`aws-samples/sample-bedrock-knowledge-base-terraform`**（S3/OpenSearch Serverless/Knowledge BaseのRAG構成）に確定
 - カスタマイズが必要な点:
   - データソースはPoC最小構成として **Google共有ドライブのみ**（Notionは対象外、将来拡張候補）
-  - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 定期同期Lambda(EventBridge Scheduler) → S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
+  - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
   - この同期処理を、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する想定
-  - ※Google Drive連携方式の詳細（サービスアカウント認可範囲、対象フォルダ限定方法等）は次回実装セッションで確定
+  - Google Drive連携の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**を採用
+  - 同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダIDはTerraformにハードコードせず、**AWS Systems Manager Parameter Store**にパラメータとして格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）。認可スコープの詳細（Parameter StoreのString/SecureString使い分け含む）は次回実装セッションで確定
+  - 同期頻度: PoC初期は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
 
 ## アーキテクチャ
 
@@ -60,11 +62,7 @@
 
 ## 未決事項
 
-- 扱う文書の件数（規模感の見積もり）
-- PII filtersの対象エンティティの詳細（住所・電話番号等、口座番号以外のどこまでを対象にするか）
 - Model invocation loggingにおいて、マスク済みPIIがログ側にも反映されるか（AWS側の挙動を実装セッションで要確認。ログ出力先は人間レビュー必須項目）
-- AppRuntimeロール名、およびバックエンドの具体的な実行基盤（Lambda/ECS等）の最終選定
-- 採用リポジトリの最終判断（`aws-samples/sample-bedrock-knowledge-base-terraform` が候補）
-- Google Drive連携の詳細設計（サービスアカウントの認可範囲、対象フォルダの限定方法、同期頻度）
+- Google Drive連携のParameter Store設計詳細（String/SecureString使い分け、サービスアカウント認可スコープの具体的なOAuthスコープ値）
 - 企業導入時に想定される「社内規程・契約・法令」の具体的な裏付け（今回は個人/家庭文脈の理由を記載。企業展開フェーズで別途確認）
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
