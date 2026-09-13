@@ -20,7 +20,11 @@
 | `modules/guardrails` | Guardrailsの設定内容（Content filters・PII filters・Contextual grounding） |
 | `modules/logging` | ログ出力先（S3バケットポリシー・KMSキー・CloudWatch Logsアクセス権限） |
 | `modules/cost` | コスト管理設定（Budgetsしきい値・Application Inference Profileのタグ付け） |
-| `billing_alarm.tf`（ルート） | コスト管理設定（アカウント全体のCloudWatch請求アラーム） |
+
+アカウント全体の請求アラーム（旧`billing_alarm.tf`）とCost allocation tagの有効化
+（旧`modules/cost`内`aws_ce_cost_allocation_tag`）は、リポジトリ直下の [`infra/`](../../../infra/README.md)
+（アカウント共通Terraform）に切り出し済み（[#1](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/1)）。
+このユースケースのTerraformとは依存関係を持たない自己完結型リソースのため、参照の配線は不要。
 
 ## 既知の構成リスク・要判断事項
 
@@ -31,14 +35,9 @@
   `docs/00-architecture-overview.md`の未決事項「アカウント分離するか」が解決するまでは、
   2つ目以降のユースケースでこのリソースを重複適用しないよう注意すること
 - **Admin/Developer/Auditorロールはユースケース名を含めた暫定命名**にしている（本来はアカウント共通の型）。
-  アカウント分離しない方針が確定したら、共通moduleへのリファクタリングが必要
+  共通moduleへのリファクタリングは[#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2)で設計中
 - `var.anthropic_model_id`（jp.anthropic.*推論プロファイルのモデルID）はプレースホルダー値。
   apply前に `aws bedrock list-inference-profiles --region ap-northeast-1` 等で実在するIDに置き換えること
-- **`modules/cost/main.tf`の`aws_ce_cost_allocation_tag`（CostCenterタグ）もタグキー単位のアカウント全体
-  シングルトン**。他ユースケースが同じタグキーを使う場合、statusの上書き合戦にならないよう注意する
-- **`billing_alarm.tf`のアカウント全体請求アラームはユースケース横断の共通リソース**。複数ユースケースを
-  同一アカウントで運用する場合、02/03側では重複適用しないこと。また、apply前にAWS Billingコンソールで
-  「請求アラートを受け取る」を手動で有効化しておく必要がある（Terraformでは自動化不可）
 - **Model invocation loggingのS3宛出力は未マスクPIIを含む**（コードレビューで指摘）。CloudWatch Logs
   data protectionはCloudWatch Logs宛のみに効く機能で、S3宛オブジェクトの同等の自動マスキング機能は
   AWSに存在しない。緩和策はS3読み取りをAuditorロールに限定することのみ（`requirements.md`未決事項参照）
@@ -48,6 +47,10 @@
   初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
 
 ## デプロイ手順
+
+アカウント共通リソース（請求アラーム・Cost allocation tag）は先にリポジトリ直下の
+[`infra/`](../../../infra/README.md)でapply済みにしておくこと（このユースケースのTerraformからの
+参照はないが、アカウント設定として先に揃えておくのが望ましい）。
 
 ```bash
 cd docs/01-internal-rag-chatbot/infra

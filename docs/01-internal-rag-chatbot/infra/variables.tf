@@ -59,7 +59,7 @@ variable "gdrive_sync_folder_id_parameter_default" {
 }
 
 variable "budget_alert_email" {
-  description = "AWS Budgetsアラートの通知先メールアドレス。"
+  description = "AWS Budgets（Bedrock予算）アラートの通知先メールアドレス。アカウント全体の請求アラームは別途 infra/ で管理する。"
   type        = string
 }
 
@@ -67,12 +67,6 @@ variable "monthly_budget_limit_usd" {
   description = "Bedrockサービスの月次予算上限（USD）。"
   type        = number
   default     = 5
-}
-
-variable "account_billing_alarm_threshold_usd" {
-  description = "AWSアカウント全体の推定請求額アラームのしきい値（USD）。Bedrock以外の全サービス合算。"
-  type        = number
-  default     = 10
 }
 
 variable "log_retention_days" {

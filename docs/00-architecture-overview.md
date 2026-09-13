@@ -75,5 +75,11 @@
   （`aws_bedrock_model_invocation_logging_configuration`、CloudWatch Billing Alarm、
   `aws_ce_cost_allocation_tag`）とAdmin/Developer/Auditorロールが、暫定的にユースケース01の
   Terraform（`docs/01-internal-rag-chatbot/infra`）内に「他ユースケースで重複適用しないよう注意」という
-  コメント付きで同居している。これらを独立した共有Terraform（例: `docs/00-architecture-overview/infra`
-  等）に切り出し、各ユースケースから参照する形にリファクタリングする作業が未着手
+  コメント付きで同居していた。
+  - CloudWatch Billing Alarmと`aws_ce_cost_allocation_tag`はリポジトリ直下の共有Terraform（`infra/`）に
+    切り出し済み（[#1](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/1)）
+  - Admin/Developer/Auditorロールの切り出しは未着手（[#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2)）。
+    Developerロールのインラインポリシー（InvokeModel許可）がユースケースごとのGuardrail ARN・推論プロファイル
+    ARNに直接紐づいており、単純に共有Terraformへ移すと共通基盤が個別ユースケースの詳細に依存する
+    逆向きの依存関係になってしまうため、設計判断が必要
+  - `aws_bedrock_model_invocation_logging_configuration`（Model invocation logging設定）の切り出しも未着手

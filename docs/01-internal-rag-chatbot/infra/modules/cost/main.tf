@@ -18,22 +18,9 @@ resource "aws_bedrock_inference_profile" "this" {
   })
 }
 
-# レビュー指摘対応: docs/00「Cost allocation tagsを有効化」が手順書頼みの手動ステップのみで、
-# Terraformで自動化されていなかった。CostCenterタグをコスト配分タグとして有効化する。
-# 注意: AWS側でタグキーが「認識」されるまでに実際の請求データ発生から最大24時間程度の
-# ラグがあるため、初回apply直後は失敗する可能性がある（その場合は時間を置いて再apply）。
-#
-# ★注意（シングルトン）★: aws_ce_cost_allocation_tagはタグキー単位でAWSアカウント全体に1つ
-# しか存在できない（billing_alarm.tf・modules/logging/bedrock_invocation_logging.tfの
-# シングルトンリソースと同種の制約）。他ユースケース(02, 03)が同じ"CostCenter"タグキーを
-# 使う場合、後から適用した方のstatus="Active"設定で上書きされるだけで実害は少ないが、
-# タグキー自体を"Inactive"にするような変更は他ユースケースのコスト集計にも影響するため注意。
-resource "aws_ce_cost_allocation_tag" "cost_center" {
-  tag_key = "CostCenter"
-  status  = "Active"
-
-  depends_on = [aws_bedrock_inference_profile.this]
-}
+# CostCenterタグのコスト配分タグとしての有効化（aws_ce_cost_allocation_tag）は
+# アカウント全体のシングルトンリソースのため、共有Terraform（infra/cost_allocation_tag.tf）に
+# 切り出し済み（#1）。ここでは付与するタグの値（CostCenter = var.use_case_name）のみ管理する。
 
 resource "aws_budgets_budget" "bedrock" {
   name         = "${var.name_prefix}-bedrock-budget"

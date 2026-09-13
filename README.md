@@ -6,6 +6,7 @@
 
 - [`CLAUDE.md`](./CLAUDE.md) — Claude Codeで作業する際に必ず読ませる指示書
 - [`docs/00-architecture-overview.md`](./docs/00-architecture-overview.md) — 全ユースケース共通の設計方針（抽象レベル）
+- [`infra/`](./infra/README.md) — アカウント共通Terraform（請求アラーム・Cost allocation tag等、どのユースケースにも属さないシングルトンリソース）
 - `docs/01-internal-rag-chatbot/` — ユースケース1: 社内RAGチャットボット
 - `docs/02-saas-backend/` — ユースケース2: 自社SaaSバックエンド機能
 - `docs/03-dev-tool/` — ユースケース3: 開発者ツール（Claude Code経由）
