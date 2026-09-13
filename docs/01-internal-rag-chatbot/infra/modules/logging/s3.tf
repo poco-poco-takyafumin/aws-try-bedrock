@@ -117,3 +117,24 @@ resource "aws_s3_bucket_policy" "logs" {
     ])
   })
 }
+
+# レビュー指摘対応: Adminロールのバケットポリシー変更権限（GetBucketPolicy/PutBucketPolicy）を
+# このログバケットに限定したアイデンティティポリシーとして付与する（以前はmodules/iam側で
+# Resource="*"となっており、ログバケット以外も書き換え可能だった。auditor_kms_decryptと
+# 同様にmodules/logging側で付与することでmodules/iamとの循環依存を回避）。
+resource "aws_iam_role_policy" "admin_log_bucket_policy_management" {
+  count = var.admin_role_name == null ? 0 : 1
+  name  = "${var.name_prefix}-admin-log-bucket-policy"
+  role  = var.admin_role_name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowLogBucketPolicyManagement"
+        Effect   = "Allow"
+        Action   = ["s3:GetBucketPolicy", "s3:PutBucketPolicy"]
+        Resource = aws_s3_bucket.logs.arn
+      }
+    ]
+  })
+}

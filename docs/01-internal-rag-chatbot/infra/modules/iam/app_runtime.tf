@@ -53,13 +53,17 @@ resource "aws_iam_role_policy" "app_runtime_bedrock" {
         }
       },
       {
+        # レビュー指摘対応: 基盤モデルARNを直接許可すると、コストタグ付きの
+        # Application Inference Profileを経由しない呼び出しが可能になってしまうため、
+        # Resourceは推論プロファイルARN（コストタグ付きApplication Inference Profile /
+        # jp.anthropic.*システム定義プロファイル）のみに限定する。
         Sid    = "AllowInvokeWithGuardrailOnly"
         Effect = "Allow"
         Action = [
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = concat(var.inference_profile_arns, [var.foundation_model_arn])
+        Resource = var.inference_profile_arns
         Condition = {
           StringEquals = {
             "bedrock:GuardrailIdentifier" = var.guardrail_arn
@@ -75,8 +79,11 @@ resource "aws_iam_role_policy" "app_runtime_bedrock" {
       },
       {
         # 保険的なDeny: 万一上のAllow条件を満たさない別経路でInvokeModelを呼ぼうとした場合に
-        # Guardrail未指定・別Guardrail指定での呼び出しを明示的に拒否する（docs/00の強制方法に対応）。
-        Sid    = "DenyInvokeWithoutThisGuardrail"
+        # 「指定Guardrail以外」を使った呼び出しを明示的に拒否する（docs/00の強制方法に対応）。
+        # 注意: StringNotEqualsは条件キー自体がリクエストに存在しない場合はfalseと評価され
+        # （IAMの仕様）、Denyが発火しない。「別のGuardrailを指定した」場合はこれで拒否できるが、
+        # 「Guardrailを一切指定しなかった」場合は下のNullチェックのDenyで別途拒否する。
+        Sid    = "DenyInvokeWithDifferentGuardrail"
         Effect = "Deny"
         Action = [
           "bedrock:InvokeModel",
@@ -87,6 +94,23 @@ resource "aws_iam_role_policy" "app_runtime_bedrock" {
         Condition = {
           StringNotEquals = {
             "bedrock:GuardrailIdentifier" = var.guardrail_arn
+          }
+        }
+      },
+      {
+        # レビュー指摘対応: 上のDenyが捕捉できない「Guardrailを一切指定しなかった」呼び出しを
+        # 拒否するための追加Deny。Null条件キーが"true"（＝キーが存在しない）の場合に発火する。
+        Sid    = "DenyInvokeWithoutAnyGuardrail"
+        Effect = "Deny"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:RetrieveAndGenerate"
+        ]
+        Resource = "*"
+        Condition = {
+          Null = {
+            "bedrock:GuardrailIdentifier" = "true"
           }
         }
       }

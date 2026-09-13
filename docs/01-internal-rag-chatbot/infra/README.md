@@ -37,6 +37,13 @@
 - **`billing_alarm.tf`のアカウント全体請求アラームはユースケース横断の共通リソース**。複数ユースケースを
   同一アカウントで運用する場合、02/03側では重複適用しないこと。また、apply前にAWS Billingコンソールで
   「請求アラートを受け取る」を手動で有効化しておく必要がある（Terraformでは自動化不可）
+- **Model invocation loggingのS3宛出力は未マスクPIIを含む**（コードレビューで指摘）。CloudWatch Logs
+  data protectionはCloudWatch Logs宛のみに効く機能で、S3宛オブジェクトの同等の自動マスキング機能は
+  AWSに存在しない。緩和策はS3読み取りをAuditorロールに限定することのみ（`requirements.md`未決事項参照）
+- **`modules/backend`のAPI Gatewayルートは暫定的にAWS_IAM認証**。Slack等の実際の呼び出し元に応じた
+  認証方式（署名検証・APIキー・Cognito等）はPhase Bで設計する（`requirements.md`未決事項参照）
+- **`modules/knowledge_base/opensearch.tf`のprovider "opensearch"ブロックは既知のTerraform制約**を持つ。
+  初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
 
 ## デプロイ手順
 
@@ -57,6 +64,11 @@ terraform plan -out=tfplan
 # ↑ このplan出力の差分を、上記「人間レビュー必須モジュール」について必ず確認する
 
 terraform apply tfplan
+# ↑ 初回applyで「provider configuration value depends on resource attributes」相当の
+#   エラーが出た場合（modules/knowledge_base/opensearch.tfの既知の制約）は、
+#   先に以下でOpenSearch Serverlessコレクションだけ作成してから再度applyする:
+#   terraform apply -target=module.knowledge_base.aws_opensearchserverless_collection.resource_kb
+#   terraform apply
 
 # apply後、google-setup.md の手順5・6に従いシークレット・パラメータを登録する
 ```

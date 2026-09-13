@@ -33,7 +33,7 @@ resource "aws_opensearchserverless_access_policy" "resource_kb" {
       ],
       Principal = [
         aws_iam_role.kb_execution.arn,
-        data.aws_caller_identity.this.arn
+        var.admin_principal_arn
       ]
     }
   ])
@@ -84,6 +84,19 @@ resource "aws_opensearchserverless_collection" "resource_kb" {
   ]
 }
 
+# ============================================================================
+# ★既知の制約（コードレビューで指摘）★
+# このprovider "opensearch"ブロックは非ルートモジュール内に置かれており、かつ
+# urlが同じapply内で作成されるコレクションのcollection_endpoint（apply後にしか
+# 確定しない値）に依存している。これはTerraformの推奨パターンではなく、
+# 初回applyでは「provider configuration value depends on resource attributes
+# that cannot be determined until apply」相当のエラーになる場合がある。
+# その場合は以下のように2段階でapplyすること（土台リポジトリ由来の既知の制約で、
+# 今回のフェーズでは構造自体は変更せず運用手順で回避する）:
+#   terraform apply -target=module.knowledge_base.aws_opensearchserverless_collection.resource_kb
+#   terraform apply
+# 2回目以降のapply（コレクションが既にstateに存在する状態）ではこの問題は発生しない。
+# ============================================================================
 provider "opensearch" {
   url         = aws_opensearchserverless_collection.resource_kb.collection_endpoint
   healthcheck = false

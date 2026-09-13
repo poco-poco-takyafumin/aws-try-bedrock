@@ -134,6 +134,15 @@ resource "aws_bedrockagent_knowledge_base" "resource_kb" {
   knowledge_base_configuration {
     vector_knowledge_base_configuration {
       embedding_model_arn = local.bedrock_model_arn
+      # レビュー指摘対応: 以前はvar.vector_dimensionがOpenSearchのインデックスマッピング
+      # （opensearch.tf）にしか反映されておらず、Bedrock側の埋め込み設定と実際に紐付いて
+      # いなかった（次元数を変更してもBedrock側はモデルの既定次元のままインデックス側と
+      # 不一致になり得た）。embedding_model_configurationで明示的に指定して一致させる。
+      embedding_model_configuration {
+        bedrock_embedding_model_configuration {
+          dimensions = var.vector_dimension
+        }
+      }
     }
     type = "VECTOR"
   }

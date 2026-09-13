@@ -8,6 +8,17 @@ variable "auditor_role_arn" {
   default     = null
 }
 
+variable "admin_role_name" {
+  description = <<-EOT
+    Adminロール名（modules/iamの出力）。ログバケットのバケットポリシー変更権限
+    （s3:GetBucketPolicy/PutBucketPolicy）をこのバケットに限定して付与するために使う。
+    レビュー指摘対応: 以前はmodules/iam側でResource="*"（全バケット）に付与しており、
+    ログバケット以外（KBデータバケット等）まで書き換え可能だった。
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "auditor_role_name" {
   description = <<-EOT
     Auditorロール名（modules/iamの出力）。ログ用KMSキーへのkms:Decrypt権限を

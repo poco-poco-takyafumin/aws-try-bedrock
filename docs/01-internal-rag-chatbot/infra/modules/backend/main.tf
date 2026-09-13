@@ -62,6 +62,16 @@ resource "aws_apigatewayv2_route" "chat" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = "POST /chat"
   target    = "integrations/${aws_apigatewayv2_integration.this.id}"
+
+  # ============================================================================
+  # ★レビュー指摘対応★ (CLAUDE.md: bedrock:InvokeModel系アクションの許可範囲に波及するIAM相当の変更)
+  # 以前は認証設定が一切なく、エンドポイントURLを知っていれば誰でも呼び出せる状態だった。
+  # Phase Aの暫定策としてAWS_IAM認証（SigV4署名必須）を設定し、無認証の外部公開を防ぐ。
+  # Slack app等、SigV4署名できない呼び出し元向けの実際の認証方式（Slack署名検証を
+  # ハンドラー内で行う専用ルートの追加、APIキー、Cognito等）はPhase Bで設計する
+  # （未決事項としてrequirements.mdに追記済み）。
+  # ============================================================================
+  authorization_type = "AWS_IAM"
 }
 
 resource "aws_lambda_permission" "apigw" {

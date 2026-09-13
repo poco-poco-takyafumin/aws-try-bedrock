@@ -112,6 +112,18 @@ resource "aws_bedrock_model_invocation_logging_configuration" "this" {
       role_arn       = aws_iam_role.bedrock_logging.arn
     }
 
+    # ============================================================================
+    # ★レビュー指摘・既知の限界（要人間レビュー）★
+    # CloudWatch Logs data protectionはCloudWatch Logs宛のログのみをマスクする機能であり、
+    # 同等のS3宛オブジェクトの自動マスキング機能はAWSに存在しない。そのため、この
+    # s3_config経由でS3に書き込まれるModel invocation logは常に「マスク前の生データ」
+    # （銀行口座番号等の未マスクPIIを含む）のままとなる。
+    # docs/00「CloudWatch LogsとS3の両方に出力する」は必須要件のためS3宛出力自体は
+    # 無効化できない。現状の緩和策はS3読み取りをAuditorロールのみに限定すること
+    # （modules/logging/s3.tf）のみであり、残存リスクとして requirements.md の
+    # 未決事項に追記済み。将来的にはS3 Object Lambda等での再マスキングパイプライン
+    # 追加を検討すること。
+    # ============================================================================
     s3_config {
       bucket_name = aws_s3_bucket.logs.id
       key_prefix  = "bedrock-invocation-logs"

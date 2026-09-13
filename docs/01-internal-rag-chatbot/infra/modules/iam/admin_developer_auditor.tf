@@ -86,12 +86,14 @@ resource "aws_iam_role_policy" "admin" {
           "cloudtrail:DescribeTrails",
           "cloudtrail:GetTrailStatus",
           "cloudtrail:AddTags",
-          "cloudtrail:RemoveTags",
-          "s3:GetBucketPolicy",
-          "s3:PutBucketPolicy"
+          "cloudtrail:RemoveTags"
         ]
         Resource = "*"
       },
+      # レビュー指摘対応: s3:GetBucketPolicy/PutBucketPolicyをResource="*"で持たせていると、
+      # ログバケット以外（KBデータバケット等）のバケットポリシーも書き換えられてしまうため、
+      # ログバケットに限定したインラインポリシーとして modules/logging 側で付与する
+      # （admin_role_name変数経由。modules/iam→modules/loggingの一方向依存で循環を回避）。
       {
         Sid      = "CostManagement"
         Effect   = "Allow"
@@ -125,21 +127,38 @@ resource "aws_iam_role_policy" "developer" {
     Version = "2012-10-17"
     Statement = [
       {
+        # レビュー指摘対応: AppRuntimeと同様にGuardrailVersionも一致条件に含める
+        # （以前はGuardrailIdentifierのみで、GuardrailのDRAFT版や別バージョンでも
+        # 通過できてしまっていた）。基盤モデルARN直接指定も許可しない（AppRuntimeと同じ理由）。
         Sid      = "AllowInvokeWithGuardrailOnly"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = concat(var.inference_profile_arns, [var.foundation_model_arn])
+        Resource = var.inference_profile_arns
         Condition = {
-          StringEquals = { "bedrock:GuardrailIdentifier" = var.guardrail_arn }
+          StringEquals = {
+            "bedrock:GuardrailIdentifier" = var.guardrail_arn
+            "bedrock:GuardrailVersion"    = var.guardrail_version
+          }
         }
       },
       {
-        Sid      = "DenyInvokeWithoutGuardrail"
+        Sid      = "DenyInvokeWithDifferentGuardrail"
         Effect   = "Deny"
         Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
         Resource = "*"
         Condition = {
           StringNotEquals = { "bedrock:GuardrailIdentifier" = var.guardrail_arn }
+        }
+      },
+      {
+        # レビュー指摘対応: StringNotEqualsはキー不在時はDenyしないため、Guardrailを
+        # 一切指定しない呼び出しを別途Nullチェックで拒否する（AppRuntimeと同じ理由）。
+        Sid      = "DenyInvokeWithoutAnyGuardrail"
+        Effect   = "Deny"
+        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Resource = "*"
+        Condition = {
+          Null = { "bedrock:GuardrailIdentifier" = "true" }
         }
       }
     ]

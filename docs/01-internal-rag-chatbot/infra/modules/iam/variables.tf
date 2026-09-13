@@ -28,11 +28,6 @@ variable "inference_profile_arns" {
   type        = list(string)
 }
 
-variable "foundation_model_arn" {
-  description = "推論プロファイルの裏側にあるAnthropic基盤モデルのARN（InvokeModel許可に併記する）。"
-  type        = string
-}
-
 variable "tags" {
   type    = map(string)
   default = {}

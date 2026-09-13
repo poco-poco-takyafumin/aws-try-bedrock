@@ -69,3 +69,5 @@
 - CloudWatch Logs data protectionの具体的なポリシー内容・diff（方針＝金融情報＋PII系識別子を広く有効化、は確定済み。実際の設定は`docs/00`の「ログ出力先」人間レビュー必須項目として実装セッションでレビュー）
 - 企業導入時に想定される「社内規程・契約・法令」の具体的な裏付け（今回は個人/家庭文脈の理由を記載。企業展開フェーズで別途確認）
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
+- **Model invocation loggingのS3宛出力に未マスクPIIが残る残存リスク**（コードレビューで指摘）: CloudWatch Logs data protectionはCloudWatch Logs宛のみをマスクし、同等のS3自動マスキング機能は存在しない。現状の緩和策はS3読み取りをAuditorロールに限定することのみ。S3 Object Lambda等での再マスキングパイプライン追加を将来検討する
+- **API Gatewayの認証方式**（コードレビューで指摘）: Phase Aでは暫定的にAWS_IAM認証を設定したが、Slack/チャットUI/CLI/プログラムそれぞれに適した実際の認証方式（Slack署名検証、APIキー、Cognito等）はPhase Bで設計・決定する

@@ -31,6 +31,17 @@ variable "kb_oss_collection_name" {
   type        = string
 }
 
+variable "admin_principal_arn" {
+  description = <<-EOT
+    OpenSearch Serverlessのdata access policyに管理アクセスを許可する管理者ロールのARN。
+    レビュー指摘対応: 以前はdata.aws_caller_identity.this.arn（apply実行者の一時的な
+    STS assumed-roleセッションARN）を使っており、SSO再ログインやCI実行のたびにARNが
+    変わって以前のapplyで許可した対象と一致しなくなる問題があった。安定したIAMロールARN
+    （modules/iamのAdminロール）を渡すことで解消する。
+  EOT
+  type        = string
+}
+
 variable "vector_dimension" {
   description = "埋め込みベクトルの次元数。"
   type        = number

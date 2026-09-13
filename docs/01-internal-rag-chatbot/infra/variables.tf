@@ -71,6 +71,17 @@ variable "account_billing_alarm_threshold_usd" {
   default     = 10
 }
 
+variable "log_retention_days" {
+  description = <<-EOT
+    全ロググループ共通のCloudWatch Logs保持日数。
+    レビュー指摘対応: 以前はmodule.loggingにのみ明示的に365を渡し、
+    backend/gdrive_syncは各モジュールの既定値(90日)に暗黙にフォールバックしていて
+    監査要件（365日保持）との間に無自覚な乖離があった。ルートで一元管理する。
+  EOT
+  type        = number
+  default     = 365
+}
+
 locals {
   common_tags = {
     Project     = var.project_name
