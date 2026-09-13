@@ -34,6 +34,8 @@
   アカウント分離しない方針が確定したら、共通moduleへのリファクタリングが必要
 - `var.anthropic_model_id`（jp.anthropic.*推論プロファイルのモデルID）はプレースホルダー値。
   apply前に `aws bedrock list-inference-profiles --region ap-northeast-1` 等で実在するIDに置き換えること
+- **`modules/cost/main.tf`の`aws_ce_cost_allocation_tag`（CostCenterタグ）もタグキー単位のアカウント全体
+  シングルトン**。他ユースケースが同じタグキーを使う場合、statusの上書き合戦にならないよう注意する
 - **`billing_alarm.tf`のアカウント全体請求アラームはユースケース横断の共通リソース**。複数ユースケースを
   同一アカウントで運用する場合、02/03側では重複適用しないこと。また、apply前にAWS Billingコンソールで
   「請求アラートを受け取る」を手動で有効化しておく必要がある（Terraformでは自動化不可）

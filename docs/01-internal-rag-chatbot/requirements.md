@@ -71,3 +71,4 @@
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
 - **Model invocation loggingのS3宛出力に未マスクPIIが残る残存リスク**（コードレビューで指摘）: CloudWatch Logs data protectionはCloudWatch Logs宛のみをマスクし、同等のS3自動マスキング機能は存在しない。現状の緩和策はS3読み取りをAuditorロールに限定することのみ。S3 Object Lambda等での再マスキングパイプライン追加を将来検討する
 - **API Gatewayの認証方式**（コードレビューで指摘）: Phase Aでは暫定的にAWS_IAM認証を設定したが、Slack/チャットUI/CLI/プログラムそれぞれに適した実際の認証方式（Slack署名検証、APIキー、Cognito等）はPhase Bで設計・決定する
+- **複数環境（poc/prod等）の同時展開方針**（コードレビューで指摘）: `var.environment`はタグ付けにのみ使用しており、`local.name_prefix`（リソース名の素材）には含めていない。AWS側の名前長制約（Knowledge Base実行ロール名64文字上限、OpenSearch Serverlessコレクション名32文字上限）に既にほぼ余裕がないため。複数環境を同一AWSアカウントに同時展開する必要が生じた場合は、命名の短縮方針自体の見直しが必要

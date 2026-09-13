@@ -11,6 +11,11 @@ locals {
   # 管理アクセスを許可したい）とmodules/iam（knowledge_base_arnを必要とする）を
   # 相互参照させると循環依存になるため、決定的な命名規則（modules/iam/admin_developer_auditor.tf
   # の "${var.name_prefix}-admin"）から直接文字列を組み立てて回避する。
+  # ★ドリフト注意★: この文字列はmodules/iam/admin_developer_auditor.tfのAdminロール名
+  # （"${var.name_prefix}-admin"）と手動で同期させている。Terraformはこの一致を検証しない。
+  # 将来Adminロールの命名規則を変更する場合は、この行も必ず同時に変更すること
+  # （さもないとOpenSearch Serverlessのdata access policyが存在しないロールARNを
+  # 指したまま気づかずに残り、管理者アクセスが黙って失われる）。
   admin_role_arn = "arn:${data.aws_partition.this.partition}:iam::${data.aws_caller_identity.this.account_id}:role/${local.name_prefix}-admin"
 }
 
@@ -89,6 +94,7 @@ module "backend" {
 
   name_prefix           = local.name_prefix
   app_runtime_role_arn  = module.iam.app_runtime_role_arn
+  developer_role_name   = module.iam.developer_role_name
   knowledge_base_id     = module.knowledge_base.knowledge_base_id
   inference_profile_arn = module.cost.inference_profile_arn
   guardrail_arn         = module.guardrails.guardrail_arn

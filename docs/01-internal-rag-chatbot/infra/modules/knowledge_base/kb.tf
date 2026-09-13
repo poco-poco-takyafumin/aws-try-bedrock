@@ -28,10 +28,6 @@ locals {
   bedrock_model_arn = "arn:${local.partition}:bedrock:${local.region}::foundation-model/${var.kb_model_id}"
 }
 
-data "aws_bedrock_foundation_model" "kb" {
-  model_id = local.bedrock_model_arn
-}
-
 # Knowledge Base実行ロール（Bedrockサービスが引き受ける）
 resource "aws_iam_role" "kb_execution" {
   name = "AmazonBedrockExecutionRoleForKnowledgeBase_${var.kb_name}"
@@ -207,6 +203,9 @@ resource "aws_bedrockagent_data_source" "resource_kb" {
         dynamic "semantic_chunking_configuration" {
           for_each = var.chunking_strategy == "SEMANTIC" ? [1] : []
           content {
+            # 注意: この属性名はAWSプロバイダのスキーマ上「max_token」(単数形)が正しい
+            # （fixed_size/hierarchicalの"max_tokens"(複数形)とは異なる。実際に
+            # terraform validateで確認済み。安易に他のブロックと揃えて複数形にしないこと）。
             max_token                       = var.semantic_max_tokens
             buffer_size                     = var.semantic_buffer_size
             breakpoint_percentile_threshold = var.semantic_breakpoint_percentile_threshold

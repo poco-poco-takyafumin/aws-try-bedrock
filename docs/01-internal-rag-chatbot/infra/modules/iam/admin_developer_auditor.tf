@@ -125,7 +125,7 @@ resource "aws_iam_role_policy" "developer" {
   role = aws_iam_role.developer.name
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         # レビュー指摘対応: AppRuntimeと同様にGuardrailVersionも一致条件に含める
         # （以前はGuardrailIdentifierのみで、GuardrailのDRAFT版や別バージョンでも
@@ -140,28 +140,8 @@ resource "aws_iam_role_policy" "developer" {
             "bedrock:GuardrailVersion"    = var.guardrail_version
           }
         }
-      },
-      {
-        Sid      = "DenyInvokeWithDifferentGuardrail"
-        Effect   = "Deny"
-        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = "*"
-        Condition = {
-          StringNotEquals = { "bedrock:GuardrailIdentifier" = var.guardrail_arn }
-        }
-      },
-      {
-        # レビュー指摘対応: StringNotEqualsはキー不在時はDenyしないため、Guardrailを
-        # 一切指定しない呼び出しを別途Nullチェックで拒否する（AppRuntimeと同じ理由）。
-        Sid      = "DenyInvokeWithoutAnyGuardrail"
-        Effect   = "Deny"
-        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = "*"
-        Condition = {
-          Null = { "bedrock:GuardrailIdentifier" = "true" }
-        }
       }
-    ]
+    ], local.guardrail_deny_statements_by_actions["developer"])
   })
 }
 

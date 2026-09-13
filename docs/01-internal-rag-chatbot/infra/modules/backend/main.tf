@@ -81,3 +81,24 @@ resource "aws_lambda_permission" "apigw" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
+
+# レビュー指摘対応: authorization_type = "AWS_IAM"はSigV4署名を必須にするだけで、
+# 呼び出し元に execute-api:Invoke を許可するIAMポリシーは別途必要
+# （このポリシーがないと、正しく署名してもAccessDeniedになり誰も呼び出せない）。
+# Phase Aでは検証目的のDeveloperロールにのみ許可する。Slack等の実際の呼び出し元向けの
+# 認証・認可方式はPhase Bで設計する（requirements.md未決事項参照）。
+resource "aws_iam_role_policy" "developer_invoke_chat_api" {
+  name = "${var.name_prefix}-developer-invoke-chat-api"
+  role = var.developer_role_name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowInvokeChatRoute"
+        Effect   = "Allow"
+        Action   = "execute-api:Invoke"
+        Resource = "${aws_apigatewayv2_api.this.execution_arn}/*/POST/chat"
+      }
+    ]
+  })
+}

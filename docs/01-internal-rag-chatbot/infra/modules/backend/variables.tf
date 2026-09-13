@@ -28,6 +28,17 @@ variable "guardrail_version" {
   type = string
 }
 
+variable "developer_role_name" {
+  description = <<-EOT
+    modules/iamのDeveloperロール名。API GatewayのAWS_IAM認証ルートに対する
+    execute-api:Invoke権限を付与し、検証目的の呼び出しができるようにするために使う。
+    レビュー指摘対応: 以前はauthorization_type = "AWS_IAM"を設定しただけで、
+    execute-api:Invokeを許可するIAMポリシーがリポジトリ内に一つも存在せず、
+    SigV4署名で正しく認証してもAccessDeniedになり誰も呼び出せない状態だった。
+  EOT
+  type        = string
+}
+
 variable "log_retention_days" {
   type    = number
   default = 90
