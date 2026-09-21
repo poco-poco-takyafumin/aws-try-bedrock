@@ -3,6 +3,17 @@
 # アクセス制御はdata policyでprincipal（KB実行ロール＋管理者）を限定することで担保している。
 # この点は requirements.md / 実装計画の「構成リスク」として明記済み。人間レビュー時に許容可否を判断すること。
 
+# terraform applyを実行する人（opensearch_index resourceがOpenSearch Serverlessの
+# データプレーンAPIを直接叩く）自身もdata access policyのprincipalに含めないと、
+# その場ではindex作成が403 Forbiddenになる。aws_iam_session_contextでSTSの
+# assumed-roleセッションARNから安定的なIAMロールARN（SSOログインのたびに変わらない）
+# を解決して使う（レビュー指摘対応: 以前はdata.aws_caller_identity.this.arnを
+# admin_principal_arn用に直接使っておりSSO再ログインで不一致になる問題があったため、
+# 同じ問題を避ける）。
+data "aws_iam_session_context" "terraform_operator" {
+  arn = data.aws_caller_identity.this.arn
+}
+
 resource "aws_opensearchserverless_access_policy" "resource_kb" {
   name = var.kb_oss_collection_name
   type = "data"
@@ -33,7 +44,8 @@ resource "aws_opensearchserverless_access_policy" "resource_kb" {
       ],
       Principal = [
         aws_iam_role.kb_execution.arn,
-        var.admin_principal_arn
+        var.admin_principal_arn,
+        data.aws_iam_session_context.terraform_operator.issuer_arn
       ]
     }
   ])

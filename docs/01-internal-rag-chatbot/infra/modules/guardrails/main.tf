@@ -5,7 +5,11 @@
 # ============================================================================
 
 resource "aws_bedrock_guardrail" "this" {
-  name                      = "${var.name_prefix}-guardrail"
+  name = "${var.name_prefix}-guardrail"
+  # 注意: descriptionを未設定のままにすると、AWS provider側の既知の挙動により
+  # 「provider returned invalid result object after apply」エラーになる場合があるため、
+  # 明示的な値を設定する（provider回避策）。
+  description               = "Guardrail for the internal RAG chatbot use case (see requirements.md)"
   blocked_input_messaging   = "この内容にはお答えできません。別の聞き方を試してください。"
   blocked_outputs_messaging = "回答内容がガイドラインに抵触するため表示できません。出典元の文書を直接ご確認ください。"
 

@@ -6,8 +6,10 @@
 # jp.anthropic.* システム定義プロファイルをラップし、UseCase/CostCenterタグを付与することで
 # Cost Explorer上でこのユースケースのBedrock利用コストのみを集計できるようにする。
 resource "aws_bedrock_inference_profile" "this" {
-  name        = "${var.name_prefix}-inference-profile"
-  description = "internal-rag-chatbot用のコスト配分タグ付きApplication Inference Profile"
+  name = "${var.name_prefix}-inference-profile"
+  # 注意: CreateInferenceProfileのdescriptionはASCII限定の正規表現でしか許可されない
+  # （日本語を含めるとValidationExceptionになる）。
+  description = "Cost-tagged Application Inference Profile for internal-rag-chatbot"
 
   model_source {
     copy_from = var.system_inference_profile_arn

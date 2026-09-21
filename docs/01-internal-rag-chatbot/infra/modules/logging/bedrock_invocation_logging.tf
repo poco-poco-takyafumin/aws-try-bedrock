@@ -21,14 +21,26 @@ resource "aws_cloudwatch_log_group" "bedrock_invocation" {
 
 locals {
   # レビュー指摘対応: audit/redact両ステートメントで同一リストを二重管理していたのを一本化。
+  #
+  # 注意（AWS公式ドキュメントで確認済み。実装セッションでapply失敗により発覚）:
+  # 当初 BankAccountNumber-JP / Address-JP / PhoneNumber-JP / SwiftCode を含めていたが、
+  # いずれも存在しない・無効な管理識別子だった:
+  #   - BankAccountNumber: 対応国は DE/ES/FR/GB/IT/US のみ（JP非対応）
+  #   - Address: 地域非依存の識別子でサフィックス不要（"Address-JP"ではなく"Address"）
+  #   - PhoneNumber: 対応国は BR/DE/ES/FR/GB/IT/US のみ（JP非対応）
+  #   - SwiftCode: CloudWatch Logsの管理データ識別子に存在しない
+  #     （Bedrock GuardrailsのPIIエンティティ名と混同していた）
+  # → BankAccountNumber-JP・PhoneNumber-JP・SwiftCodeは代替がないため削除。
+  #   日本の銀行口座番号・電話番号はCloudWatch Logs data protectionでは検出できない
+  #   残存ギャップとして requirements.md に追記する
+  #   （Guardrails側は日本の銀行口座番号をカスタム正規表現で別途カバー済み。
+  #   ただしGuardrailsが保護するのはモデル入出力であり、CloudWatch Logs宛の
+  #   生ログ自体は別レイヤーのため、このギャップは解消されない）。
   pii_data_identifiers = [
-    "arn:aws:dataprotection::aws:data-identifier/BankAccountNumber-JP",
-    "arn:aws:dataprotection::aws:data-identifier/Address-JP",
-    "arn:aws:dataprotection::aws:data-identifier/PhoneNumber-JP",
+    "arn:aws:dataprotection::aws:data-identifier/Address",
     "arn:aws:dataprotection::aws:data-identifier/CreditCardNumber",
     "arn:aws:dataprotection::aws:data-identifier/CreditCardExpiration",
     "arn:aws:dataprotection::aws:data-identifier/CreditCardSecurityCode",
-    "arn:aws:dataprotection::aws:data-identifier/SwiftCode",
     "arn:aws:dataprotection::aws:data-identifier/Name",
     "arn:aws:dataprotection::aws:data-identifier/EmailAddress"
   ]
