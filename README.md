@@ -25,9 +25,29 @@
 
 | ユースケース | 要件詰め | 実装 |
 |---|---|---|
-| 01. 社内RAGチャットボット | 完了 | Phase A完了（Knowledge Base/Guardrails/IAM/ログ基盤、apply済み）。Phase B（チャットバックエンド・Google Drive同期の中身、API Gateway認証方式）は未着手 |
+| 01. 社内RAGチャットボット | 完了 | **Phase A完了**（Knowledge Base/Guardrails/IAM/ログ基盤、2026-09-21 apply済み）。**Phase B着手中**（詳細は下記TODO） |
 | 02. SaaSバックエンド機能 | 未着手 | 未着手 |
 | 03. 開発者ツール | 未着手 | 未着手 |
+
+### 01. 社内RAGチャットボット — Phase B TODO
+
+Phase A（インフラ骨格）はapply済み。Phase Bでは、プレースホルダーのまま残っている2つのLambda
+（`modules/gdrive_sync`, `modules/backend`）に実際のロジックを実装し、実際に使えるチャットボットにする。
+
+**2026-09-23、方針転換**: Google Drive連携（`gdrive_sync`）は後回しにし、まずS3への手動アップロードで
+RAGパイプライン本体（取り込み〜チャット応答）の動作確認を優先する（詳細は`requirements.md`の
+「データソース方針の見直し」参照）。扱う文書の性質（家庭の機密文書想定）・Guardrails方針は変更しない。
+
+- [x] Phase A: インフラ骨格一式（Knowledge Base / OpenSearch Serverless / Guardrails / IAM / ログ基盤）を`terraform apply`（2026-09-21）
+- [x] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— 実装済み・[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)はオープンのまま**保留**（方針転換によりGoogle連携は後回し。マージ・apply未実施）
+- [ ] B-2. Knowledge Base取り込み動作確認 — `gdrive_sync`を待たず、**S3への手動アップロード**でサンプル文書を投入し、ingestion job実行・検索できることを確認する（方針転換により実施方法を変更）
+- [ ] B-3. チャットバックエンドLambda実装（`modules/backend/src/handler.py`）— `bedrock:RetrieveAndGenerate` + Guardrail呼び出し + citation付与
+- [ ] B-4. API Gateway認証方式の実装 — **APIキー方式に決定済み**（2026-09-22ユーザー確認）。Phase Aは暫定でAWS_IAM認証
+- [ ] B-5. E2E動作確認（S3に置いた文書をKnowledge Baseが検索し、チャットで質問して出典付きの回答が返ることを確認）
+- [ ] （将来検討）B-6. Google Drive同期の本格導入 — B-1で実装済みの`gdrive_sync`（PR #8）をベースに、B-2〜B-5の動作確認が済んだ段階で再検討
+
+進め方の詳細は [`docs/01-internal-rag-chatbot/requirements.md`](./docs/01-internal-rag-chatbot/requirements.md)（未決事項含む）と
+[`docs/01-internal-rag-chatbot/infra/README.md`](./docs/01-internal-rag-chatbot/infra/README.md) を参照。
 
 ## 横断issue
 

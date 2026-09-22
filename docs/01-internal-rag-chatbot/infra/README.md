@@ -6,9 +6,14 @@
 
 ## スコープ
 
-**Phase A（本実装）**: インフラ骨格一式をTerraformコードとして用意。`terraform apply`は未実施。
-**Phase B（別セッション予定）**: `modules/gdrive_sync` と `modules/backend` の中身（Python実装本体）。
-現状はどちらもプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。
+**Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
+**Phase B（進行中、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
+`modules/backend` の中身（Python実装本体）。進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--phase-b-todo)のTODOを参照。
+
+- **2026-09-23、方針転換**: Google Drive連携は後回しにし、まずS3への手動アップロードでRAGパイプライン
+  本体の動作確認を優先する（`requirements.md`の「データソース方針の見直し」参照）
+- `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックは実装済み（B-1、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)）だが、上記方針転換によりマージ・apply未実施のまま保留
+- `modules/backend`: 引き続きプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装予定
 
 ## ★人間レビュー必須モジュール（CLAUDE.mdより）
 
