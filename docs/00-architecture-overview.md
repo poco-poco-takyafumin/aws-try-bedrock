@@ -2,6 +2,15 @@
 
 このドキュメントは全ユースケースに共通する方針のみを記載する。ユースケース固有の要件・Guardrailsの中身・採用リポジトリは各 `docs/0X-xxx/requirements.md` に記載する。
 
+## 0. アカウント方針（確定）
+
+- **複数ユースケース（01, 02, 03...）は単一AWSアカウントで運用する**（アカウント分離はしない）
+  - 理由: 個人/家庭規模のPoCであり、複数アカウント（AWS Organizations等）のセットアップ・継続的な運用コストに見合わない
+- この決定に伴う実装上の含意:
+  - **アカウント×リージョン単位のシングルトンリソース**（Model invocation logging設定、CloudWatch Billing Alarm、Cost allocation tagのアクティブ化等）は、ユースケースごとに重複作成せず、**共有Terraformとして1箇所で管理する**。どのユースケースのTerraformにも属さない、アカウント共通の基盤として切り出すこと（CloudWatch Billing Alarm・Cost allocation tagは切り出し済み、詳細は下記7章の未決事項）
+  - Admin/Developer/Auditorロール（2章）も本来アカウント共通の型であり、将来的に共有moduleへ統合する。ユースケース01の実装では暫定的にユースケース名を含めた命名で個別作成しているが、これは正式な設計ではなく移行対象
+  - 上記の共有化が完了するまでの間、各ユースケースの `requirements.md` / Terraformには「このリソースはアカウント全体のシングルトンである」旨を明記し、他ユースケースでの重複適用を防ぐこと
+
 ## 1. リージョン方針
 
 - 東京リージョン（ap-northeast-1）を基本とする
@@ -61,4 +70,16 @@
 ## 7. 未決事項（全体）
 
 - IaCツールの最終統一（Terraformを基本方針とするが、Guardrails監視系はCDKサンプルが多く混在しうる）
-- 複数ユースケースを単一AWSアカウントで運用するか、アカウント分離するか
+- ~~複数ユースケースを単一AWSアカウントで運用するか、アカウント分離するか~~ → **単一アカウント運用に決定**（0章参照）
+- **共有アカウントリソースの切り出し**: ユースケース01の実装時点では、アカウント全体のシングルトンリソース
+  （`aws_bedrock_model_invocation_logging_configuration`、CloudWatch Billing Alarm、
+  `aws_ce_cost_allocation_tag`）とAdmin/Developer/Auditorロールが、暫定的にユースケース01の
+  Terraform（`docs/01-internal-rag-chatbot/infra`）内に「他ユースケースで重複適用しないよう注意」という
+  コメント付きで同居していた。
+  - CloudWatch Billing Alarmと`aws_ce_cost_allocation_tag`はリポジトリ直下の共有Terraform（`infra/`）に
+    切り出し済み（[#1](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/1)）
+  - Admin/Developer/Auditorロールの切り出しは未着手（[#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2)）。
+    Developerロールのインラインポリシー（InvokeModel許可）がユースケースごとのGuardrail ARN・推論プロファイル
+    ARNに直接紐づいており、単純に共有Terraformへ移すと共通基盤が個別ユースケースの詳細に依存する
+    逆向きの依存関係になってしまうため、設計判断が必要
+  - `aws_bedrock_model_invocation_logging_configuration`（Model invocation logging設定）の切り出しも未着手

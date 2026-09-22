@@ -1,0 +1,8 @@
+.terraform/
+# .terraform.lock.hcl はコミットする（プロバイダバージョンの再現性のため）
+terraform.tfstate
+terraform.tfstate.backup
+tfplan
+*.tfvars
+.build/
+*.zip

@@ -1,0 +1,145 @@
+# ============================================================================
+# ★人間レビュー必須モジュール★ (CLAUDE.md: Guardrailsの設定内容)
+# requirements.md「Guardrailsプロファイル方針」の確定内容を反映。
+# apply前に必ずdiff（terraform plan）を人間がレビューすること。
+# ============================================================================
+
+resource "aws_bedrock_guardrail" "this" {
+  name = "${var.name_prefix}-guardrail"
+  # 注意: descriptionを未設定のままにすると、AWS provider側の既知の挙動により
+  # 「provider returned invalid result object after apply」エラーになる場合があるため、
+  # 明示的な値を設定する（provider回避策）。
+  description               = "Guardrail for the internal RAG chatbot use case (see requirements.md)"
+  blocked_input_messaging   = "この内容にはお答えできません。別の聞き方を試してください。"
+  blocked_outputs_messaging = "回答内容がガイドラインに抵触するため表示できません。出典元の文書を直接ご確認ください。"
+
+  # Content filters: 全カテゴリ最も厳しい設定（requirements.md確定: 家庭利用・子どもが触れる可能性を考慮）
+  content_policy_config {
+    filters_config {
+      type            = "HATE"
+      input_strength  = "HIGH"
+      output_strength = "HIGH"
+    }
+    filters_config {
+      type            = "INSULTS"
+      input_strength  = "HIGH"
+      output_strength = "HIGH"
+    }
+    filters_config {
+      type            = "SEXUAL"
+      input_strength  = "HIGH"
+      output_strength = "HIGH"
+    }
+    filters_config {
+      type            = "VIOLENCE"
+      input_strength  = "HIGH"
+      output_strength = "HIGH"
+    }
+    filters_config {
+      type            = "MISCONDUCT"
+      input_strength  = "HIGH"
+      output_strength = "HIGH"
+    }
+    filters_config {
+      type            = "PROMPT_ATTACK"
+      input_strength  = "HIGH"
+      output_strength = "NONE" # Bedrock仕様上、PROMPT_ATTACKはoutput側の強度指定不可
+    }
+  }
+
+  # Denied topics: requirements.md確定により設定しない（家庭内利用のため業務外話題の制限は不要）
+  # topic_policy_config はブロックなし
+
+  # PII filters: Bedrock標準PIIエンティティを広く適用。
+  # action=ANONYMIZE（本文中の値をマスクして応答自体は継続する）を採用。
+  # BLOCKにすると応答全体が拒否され、「出典リンクを提示する」というrequirements.mdの方針が実現できないため。
+  sensitive_information_policy_config {
+    pii_entities_config {
+      type   = "NAME"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "ADDRESS"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "PHONE"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "EMAIL"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "AGE"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "CREDIT_DEBIT_CARD_NUMBER"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "CREDIT_DEBIT_CARD_CVV"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "CREDIT_DEBIT_CARD_EXPIRY"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "INTERNATIONAL_BANK_ACCOUNT_NUMBER"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      # 日本の口座番号には直接該当しないが念のため広く有効化
+      type   = "US_BANK_ACCOUNT_NUMBER"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "SWIFT_CODE"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "PASSWORD"
+      action = "ANONYMIZE"
+    }
+    pii_entities_config {
+      type   = "USERNAME"
+      action = "ANONYMIZE"
+    }
+
+    # 日本の銀行口座番号はBedrock標準PIIエンティティに直接対応するものがないため、
+    # 正規表現フィルタで補う。
+    # レビュー指摘対応: 単純な「7桁の数字」（\b\d{7}\b）は郵便番号・伝票番号等の
+    # 無関係な7桁数字まで誤検知するため、「口座番号」等のラベルが直前にある場合に
+    # 限定するパターンに変更（ラベルごとマスクする。過検知よりは見逃しを許容する方針）。
+    # 実データでの取りこぼし・誤検知は運用しながら調整すること。
+    regexes_config {
+      name        = "jp_bank_account_number"
+      description = "「口座番号」等のラベル直後にある7桁の数字列（日本の銀行口座番号を想定）。ラベルなしの単独7桁数字は対象外。"
+      pattern     = "(?:口座番号|口座No\\.?|Account No\\.?)[:：\\s]*\\d{7}\\b"
+      action      = "ANONYMIZE"
+    }
+  }
+
+  # Contextual grounding check: 厳しめ（高しきい値）。
+  # 銀行口座・保険等の正確性が重要な情報を扱うため、根拠のない推論回答を厳しくブロックする。
+  contextual_grounding_policy_config {
+    filters_config {
+      type      = "GROUNDING"
+      threshold = 0.85
+    }
+    filters_config {
+      type      = "RELEVANCE"
+      threshold = 0.85
+    }
+  }
+
+  tags = var.tags
+}
+
+# DRAFTは変更可能なため、実際の呼び出しには不変なバージョンを発行して使う。
+resource "aws_bedrock_guardrail_version" "this" {
+  guardrail_arn = aws_bedrock_guardrail.this.guardrail_arn
+  description   = "requirements.md確定内容の初版"
+}

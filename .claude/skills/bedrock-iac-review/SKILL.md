@@ -11,7 +11,7 @@ description: このリポジトリのAmazon Bedrock Terraform実装（docs/0X-*/
 
 1. `docs/0X-*/infra/**/*.tf` に触れる差分をレビューする際（または`terraform apply`前）、以下の各項目を実際に変更されたファイルに対して1つずつ確認する。スタイルを流し読みするだけで済ませない。
 2. 各候補は必ずソースコードを読んで裏取りしてから報告する（Resource/Condition/変数の実際の配線を確認する）。「このクラスのバグは存在する」という記憶だけで指摘しない。
-3. `/code-review`と同じ形式で報告する: 確認できたものを`ReportFindings`ツールで`file`・`line`・`summary`・`failure_scenario`・`verdict`とともに報告する。
+3. 確認できたものは、実行中のレビューが指示する出力形式に従って報告する。`/code-review`本体は「`ReportFindings`ツールは（使えても）呼ばず、`file`・`line`・`summary`・`failure_scenario`を含むJSON配列をそのまま出力する」契約になっているため、本スキルを`/code-review`と併用する場合はそちらの契約に従う。単体で使う場合や、呼び出し元から明示的に`ReportFindings`ツールでの報告を指示された場合のみそのツールを使う。
 4. レビュー完了後、下記「スキルの育て方」に従ってこのチェックリスト自体を更新するか判断する。このスキルは使うたびにメンテナンス対象になる。
 
 ## IAM: Guardrail強制と最小権限
