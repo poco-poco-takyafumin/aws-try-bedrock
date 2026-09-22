@@ -93,7 +93,8 @@ infra/
 ├── google-setup.md      # Google Workspace側の手順書
 ├── modules/
 │   ├── knowledge_base/  # S3データソース + OpenSearch Serverless + Knowledge Base（土台リポジトリ移植）
-│   ├── iam/              # Admin/Developer/AppRuntime/Auditorロール
+│   ├── iam/              # Developer/AppRuntime/Auditorロール
+│   ├── iam_admin/         # Adminロール（knowledge_baseとの循環依存を避けるため独立moduleに分離）
 │   ├── guardrails/        # Bedrock Guardrail
 │   ├── logging/            # CloudTrail + Model invocation logging + CloudWatch Logs data protection
 │   ├── cost/                # AWS Budgets + Application Inference Profile

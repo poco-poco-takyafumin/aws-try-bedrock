@@ -5,18 +5,16 @@ locals {
   # jp.anthropic.* JP Geo推論プロファイル（システム定義）のARN。
   # requirements.md確定: データ主権優先のためjp.anthropic.*を採用（global.*は不採用）。
   jp_anthropic_system_profile_arn = "arn:${data.aws_partition.this.partition}:bedrock:${var.aws_region}:${data.aws_caller_identity.this.account_id}:inference-profile/jp.anthropic.${var.anthropic_model_id}"
+}
 
-  # レビュー指摘対応: Admin実行ロールのARNを、modules/iamの出力を待たずに命名規則から
-  # 直接組み立てる。modules/knowledge_base（OpenSearchアクセスポリシーでAdminにも
-  # 管理アクセスを許可したい）とmodules/iam（knowledge_base_arnを必要とする）を
-  # 相互参照させると循環依存になるため、決定的な命名規則（modules/iam/admin_developer_auditor.tf
-  # の "${var.name_prefix}-admin"）から直接文字列を組み立てて回避する。
-  # ★ドリフト注意★: この文字列はmodules/iam/admin_developer_auditor.tfのAdminロール名
-  # （"${var.name_prefix}-admin"）と手動で同期させている。Terraformはこの一致を検証しない。
-  # 将来Adminロールの命名規則を変更する場合は、この行も必ず同時に変更すること
-  # （さもないとOpenSearch Serverlessのdata access policyが存在しないロールARNを
-  # 指したまま気づかずに残り、管理者アクセスが黙って失われる）。
-  admin_role_arn = "arn:${data.aws_partition.this.partition}:iam::${data.aws_caller_identity.this.account_id}:role/${local.name_prefix}-admin"
+# modules/knowledge_baseが必要とするadmin_principal_arnをmodules/iam（developer等）より
+# 先に、かつmodules/knowledge_baseに依存しない形で確定させるため独立モジュールに分離している
+# （modules/iam_admin側のコメント参照。循環依存の手組みARN回避）。
+module "iam_admin" {
+  source = "./modules/iam_admin"
+
+  name_prefix = local.name_prefix
+  tags        = local.common_tags
 }
 
 module "knowledge_base" {
@@ -29,7 +27,7 @@ module "knowledge_base" {
   kb_model_id            = var.kb_embedding_model_id
   vector_dimension       = 1024
   chunking_strategy      = "DEFAULT"
-  admin_principal_arn    = local.admin_role_arn
+  admin_principal_arn    = module.iam_admin.admin_role_arn
   tags                   = local.common_tags
 }
 
@@ -72,7 +70,7 @@ module "logging" {
   name_prefix        = local.name_prefix
   auditor_role_arn   = module.iam.auditor_role_arn
   auditor_role_name  = module.iam.auditor_role_name
-  admin_role_name    = module.iam.admin_role_name
+  admin_role_name    = module.iam_admin.admin_role_name
   log_retention_days = var.log_retention_days
   tags               = local.common_tags
 }
