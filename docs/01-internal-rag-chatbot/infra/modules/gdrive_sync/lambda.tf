@@ -43,6 +43,12 @@ resource "aws_iam_role_policy" "this" {
         Resource = aws_ssm_parameter.gdrive_folder_id.arn
       },
       {
+        Sid      = "ReadImpersonateUserParameter"
+        Effect   = "Allow"
+        Action   = "ssm:GetParameter"
+        Resource = aws_ssm_parameter.gdrive_impersonate_user.arn
+      },
+      {
         Sid      = "WriteKbBucket"
         Effect   = "Allow"
         Action   = ["s3:PutObject", "s3:ListBucket"]
@@ -75,12 +81,14 @@ resource "aws_lambda_function" "this" {
   memory_size      = 512
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
+  layers           = [aws_lambda_layer_version.deps.arn]
 
   environment {
     variables = {
-      KB_BUCKET_NAME       = var.kb_bucket_name
-      GDRIVE_SECRET_ARN    = aws_secretsmanager_secret.gdrive_service_account.arn
-      GDRIVE_FOLDER_ID_SSM = aws_ssm_parameter.gdrive_folder_id.name
+      KB_BUCKET_NAME              = var.kb_bucket_name
+      GDRIVE_SECRET_ARN           = aws_secretsmanager_secret.gdrive_service_account.arn
+      GDRIVE_FOLDER_ID_SSM        = aws_ssm_parameter.gdrive_folder_id.name
+      GDRIVE_IMPERSONATE_USER_SSM = aws_ssm_parameter.gdrive_impersonate_user.name
     }
   }
 

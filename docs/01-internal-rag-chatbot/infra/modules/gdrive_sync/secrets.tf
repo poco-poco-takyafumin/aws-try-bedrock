@@ -21,3 +21,18 @@ resource "aws_ssm_parameter" "gdrive_folder_id" {
     ignore_changes = [value] # 運用中の変更をterraform applyで巻き戻さない
   }
 }
+
+# ドメイン全体委譲でなりすます対象ユーザー（Google Workspaceのメールアドレス。通常は
+# 同期対象フォルダの所有者）。フォルダIDと同様に非機密だが運用中に変更されうるため、
+# SSM Parameter Store（String）で管理する（google-setup.md 手順6と同様の運用）。
+resource "aws_ssm_parameter" "gdrive_impersonate_user" {
+  name        = "/${var.name_prefix}/gdrive-sync/impersonate-user"
+  description = "ドメイン全体委譲でなりすます対象ユーザーのメールアドレス"
+  type        = "String"
+  value       = var.gdrive_impersonate_user_default
+  tags        = var.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}

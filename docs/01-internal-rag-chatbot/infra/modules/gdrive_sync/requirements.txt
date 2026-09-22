@@ -1,0 +1,10 @@
+# google-auth系はcryptography(コンパイル済みバイナリ)を意図的に依存関係から外し、
+# 代わりにrsa(純Python実装)を明示的にインストールする。
+# 理由: このLambda用の依存はTerraformのlocal-exec(pip install)でビルド環境
+# (開発者のローカルマシン)上に作成するため、Lambda実行環境(Amazon Linux)と
+# アーキテクチャが異なる可能性がある。純Pythonパッケージのみで揃えることで
+# クロスプラットフォームの互換性問題を避ける。
+google-api-python-client==2.149.0
+google-auth==2.35.0
+google-auth-httplib2==0.2.0
+rsa==4.9

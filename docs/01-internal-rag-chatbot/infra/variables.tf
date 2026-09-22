@@ -58,6 +58,17 @@ variable "gdrive_sync_folder_id_parameter_default" {
   default     = "REPLACE_WITH_ACTUAL_FOLDER_ID"
 }
 
+variable "gdrive_sync_impersonate_user_parameter_default" {
+  description = <<-EOT
+    ドメイン全体委譲でなりすます対象ユーザー（Google Workspaceのメールアドレス。
+    通常は同期対象フォルダの所有者）の初期値。フォルダIDと同様に非機密だが運用中に
+    変更されうるため、SSM Parameter Store（String）経由でLambdaに渡す
+    （google-setup.md 手順6と同様の運用）。
+  EOT
+  type        = string
+  default     = "REPLACE_WITH_ACTUAL_IMPERSONATE_USER_EMAIL"
+}
+
 variable "budget_alert_email" {
   description = "AWS Budgets（Bedrock予算）アラートの通知先メールアドレス。アカウント全体の請求アラームは別途 infra/ で管理する。"
   type        = string

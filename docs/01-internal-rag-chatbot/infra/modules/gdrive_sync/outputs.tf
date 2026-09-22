@@ -13,3 +13,7 @@ output "secret_arn" {
 output "folder_id_parameter_name" {
   value = aws_ssm_parameter.gdrive_folder_id.name
 }
+
+output "impersonate_user_parameter_name" {
+  value = aws_ssm_parameter.gdrive_impersonate_user.name
+}
