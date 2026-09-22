@@ -1,13 +1,16 @@
 # ============================================================================
-# 注意: docs/00-architecture-overview.md のAdmin/Developer/Auditorは本来アカウント
+# 注意: docs/00-architecture-overview.md のDeveloper/Auditorは本来アカウント
 # 共通の「型」であり、AppRuntimeのように1ユースケース=1ロールではない。
 # しかしdocs/00の未決事項「複数ユースケースを単一AWSアカウントで運用するか、
-# アカウント分離するか」が未確定のため、他ユースケース(02, 03)のTerraformと
-# 同名ロースを重複作成して衝突するのを避ける目的で、ここではユースケース名を
-# ロール名に含めて作成している（暫定対応）。
+# アカウント分離するか」が未確定だった当時の経緯から、他ユースケース(02, 03)の
+# Terraformと同名ロールを重複作成して衝突するのを避ける目的で、ここでは
+# ユースケース名をロール名に含めて作成している（暫定対応）。
 # 将来的に「単一アカウント運用」に決まった場合は、これらのロールをユースケース
 # 横断の共通moduleに切り出し、本ユースケースのmoduleからは呼び出しに留めるよう
-# リファクタリングが必要（未決事項として requirements.md に追記済み）。
+# リファクタリングが必要（issue #2、未決事項として requirements.md に追記済み）。
+#
+# Adminロールはこのファイルではなく独立した modules/iam_admin で定義している
+# （modules/knowledge_baseとの循環依存を避けるため。詳細は同moduleのコメント参照）。
 # ============================================================================
 
 data "aws_caller_identity" "this" {}
@@ -15,93 +18,6 @@ data "aws_partition" "this" {}
 
 locals {
   account_root_principal = "arn:${data.aws_partition.this.partition}:iam::${data.aws_caller_identity.this.account_id}:root"
-}
-
-# --- Admin: Model access申請、Guardrails管理、ログ/Budgets設定変更（少数の管理者のみ） ---
-resource "aws_iam_role" "admin" {
-  name = "${var.name_prefix}-admin"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # TODO(要レビュー): 本来はIAM Identity Center経由のSSO権限セットで統制すべき。
-        # ここではPoC簡略化のためアカウントrootからのAssumeRoleのみ許可し、
-        # 実際に引き受けられる主体はIAMポリシー/Identity Center側で別途絞ること。
-        Action    = "sts:AssumeRole"
-        Effect    = "Allow"
-        Principal = { AWS = local.account_root_principal }
-      }
-    ]
-  })
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy" "admin" {
-  name = "${var.name_prefix}-admin"
-  role = aws_iam_role.admin.name
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "BedrockGovernance"
-        Effect = "Allow"
-        Action = [
-          "bedrock:*Guardrail*",
-          "bedrock:GetFoundationModel",
-          "bedrock:ListFoundationModels",
-          "bedrock:GetInferenceProfile",
-          "bedrock:ListInferenceProfiles",
-          "bedrock:CreateInferenceProfile",
-          "bedrock:TagResource",
-          "bedrock:UntagResource"
-        ]
-        Resource = "*"
-      },
-      {
-        # レビュー指摘対応: 以前は logs:* / cloudtrail:* のワイルドカードで
-        # ログ「内容」の読み取り（logs:GetLogEvents, logs:FilterLogEvents,
-        # logs:GetLogRecord, logs:StartQuery/GetQueryResults, cloudtrail:LookupEvents 等）
-        # まで許可してしまっていた。docs/00「ログへの読み取り権限はAuditorロールのみに
-        # 付与する」に反するため、設定変更系アクションのみに絞り込む。
-        Sid    = "LoggingConfig"
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:DeleteLogGroup",
-          "logs:PutRetentionPolicy",
-          "logs:DeleteRetentionPolicy",
-          "logs:DescribeLogGroups",
-          "logs:PutDataProtectionPolicy",
-          "logs:DeleteDataProtectionPolicy",
-          "logs:GetDataProtectionPolicy",
-          "logs:TagResource",
-          "logs:UntagResource",
-          "cloudtrail:CreateTrail",
-          "cloudtrail:UpdateTrail",
-          "cloudtrail:DeleteTrail",
-          "cloudtrail:StartLogging",
-          "cloudtrail:StopLogging",
-          "cloudtrail:PutEventSelectors",
-          "cloudtrail:GetEventSelectors",
-          "cloudtrail:DescribeTrails",
-          "cloudtrail:GetTrailStatus",
-          "cloudtrail:AddTags",
-          "cloudtrail:RemoveTags"
-        ]
-        Resource = "*"
-      },
-      # レビュー指摘対応: s3:GetBucketPolicy/PutBucketPolicyをResource="*"で持たせていると、
-      # ログバケット以外（KBデータバケット等）のバケットポリシーも書き換えられてしまうため、
-      # ログバケットに限定したインラインポリシーとして modules/logging 側で付与する
-      # （admin_role_name変数経由。modules/iam→modules/loggingの一方向依存で循環を回避）。
-      {
-        Sid      = "CostManagement"
-        Effect   = "Allow"
-        Action   = ["budgets:*", "ce:*"]
-        Resource = "*"
-      }
-    ]
-  })
 }
 
 # --- Developer: 検証目的のモデル呼び出し（Guardrails必須の条件付き） ---

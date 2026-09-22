@@ -2,6 +2,8 @@
 # .terraform.lock.hcl はコミットする（プロバイダバージョンの再現性のため）
 terraform.tfstate
 terraform.tfstate.backup
+# terraform state mv 等が生成するタイムスタンプ付きバックアップ
+terraform.tfstate.*.backup
 tfplan
 *.tfvars
 .build/
