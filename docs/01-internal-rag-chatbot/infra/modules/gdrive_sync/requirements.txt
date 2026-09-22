@@ -1,0 +1,13 @@
+# google-auth系はcryptography(コンパイル済みバイナリ)を意図的に依存関係から外し、
+# 代わりにrsa(純Python実装)を明示的にインストールする。
+#
+# レビュー指摘対応: google-api-python-client自体はgoogle-api-core経由でprotobuf等の
+# コンパイル済み(非純Python)パッケージに依存するため、このrequirements.txt全体が
+# 純Pythonというわけではない。ビルド環境(開発者のローカルマシン)とLambda実行環境
+# (Amazon Linux)のアーキテクチャ差異は、このファイルの構成ではなく
+# ../layer.tf 側の `pip install --platform manylinux2014_x86_64 --only-binary=:all:` で
+# 吸収する。
+google-api-python-client==2.149.0
+google-auth==2.35.0
+google-auth-httplib2==0.2.0
+rsa==4.9

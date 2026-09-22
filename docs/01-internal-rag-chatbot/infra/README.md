@@ -6,9 +6,12 @@
 
 ## スコープ
 
-**Phase A（本実装）**: インフラ骨格一式をTerraformコードとして用意。`terraform apply`は未実施。
-**Phase B（別セッション予定）**: `modules/gdrive_sync` と `modules/backend` の中身（Python実装本体）。
-現状はどちらもプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。
+**Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
+**Phase B（進行中、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
+`modules/backend` の中身（Python実装本体）。進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--phase-b-todo)のTODOを参照。
+
+- `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックを実装済み（B-1）。動作確認（B-2）は未実施
+- `modules/backend`: 引き続きプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装予定
 
 ## ★人間レビュー必須モジュール（CLAUDE.mdより）
 
@@ -45,6 +48,12 @@
   認証方式（署名検証・APIキー・Cognito等）はPhase Bで設計する（`requirements.md`未決事項参照）
 - **`modules/knowledge_base/opensearch.tf`のprovider "opensearch"ブロックは既知のTerraform制約**を持つ。
   初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
+- **`modules/gdrive_sync`の同期ロジックは文書内容のPIIマスキング・文書ごとのアクセス範囲タグ付けを実装していない**（B-1でのスコープ判断）。
+  requirements.mdでは同期処理をその実施場所として想定していたが、まず同期そのものを動かすことを優先した。
+  現状の緩和策はGuardrails側の出力時マスキング・Contextual grounding checkのみ。将来のセッションで対応を検討する
+- **`modules/gdrive_sync`のLambda Layer（`layer.tf`）はterraform apply実行環境でのローカル`pip install`に依存する**。
+  依存パッケージ（`requirements.txt`）は意図的に純Pythonのみで構成しビルド環境とLambda実行環境の
+  アーキテクチャ差異を回避しているが、apply実行者のマシンに`pip`が必要
 
 ## デプロイ手順
 
@@ -98,8 +107,8 @@ infra/
 │   ├── guardrails/        # Bedrock Guardrail
 │   ├── logging/            # CloudTrail + Model invocation logging + CloudWatch Logs data protection
 │   ├── cost/                # AWS Budgets + Application Inference Profile
-│   ├── gdrive_sync/         # Google Drive同期Lambda（箱のみ、中身はPhase B）
-│   └── backend/             # API Gateway + チャットバックエンドLambda（箱のみ、中身はPhase B）
+│   ├── gdrive_sync/         # Google Drive同期Lambda（B-1実装済み。layer.tfで依存パッケージをLambda Layer化）
+│   └── backend/             # API Gateway + チャットバックエンドLambda（箱のみ、中身はB-3で実装予定）
 ```
 
 ## 検証方法

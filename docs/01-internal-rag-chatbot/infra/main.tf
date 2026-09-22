@@ -78,13 +78,14 @@ module "logging" {
 module "gdrive_sync" {
   source = "./modules/gdrive_sync"
 
-  name_prefix              = local.name_prefix
-  kb_bucket_name           = aws_s3_bucket.kb_data.bucket
-  kb_bucket_arn            = aws_s3_bucket.kb_data.arn
-  kb_kms_key_arn           = aws_kms_key.kb_data.arn
-  gdrive_folder_id_default = var.gdrive_sync_folder_id_parameter_default
-  log_retention_days       = var.log_retention_days
-  tags                     = local.common_tags
+  name_prefix                     = local.name_prefix
+  kb_bucket_name                  = aws_s3_bucket.kb_data.bucket
+  kb_bucket_arn                   = aws_s3_bucket.kb_data.arn
+  kb_kms_key_arn                  = aws_kms_key.kb_data.arn
+  gdrive_folder_id_default        = var.gdrive_sync_folder_id_parameter_default
+  gdrive_impersonate_user_default = var.gdrive_sync_impersonate_user_parameter_default
+  log_retention_days              = var.log_retention_days
+  tags                            = local.common_tags
 }
 
 module "backend" {

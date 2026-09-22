@@ -20,6 +20,11 @@ variable "gdrive_folder_id_default" {
   type = string
 }
 
+variable "gdrive_impersonate_user_default" {
+  description = "ドメイン全体委譲でなりすます対象ユーザー（Google Workspaceのメールアドレス）の初期値。"
+  type        = string
+}
+
 variable "log_retention_days" {
   type    = number
   default = 90

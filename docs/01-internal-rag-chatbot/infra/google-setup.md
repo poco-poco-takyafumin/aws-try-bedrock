@@ -34,7 +34,7 @@ Terraformでは自動化できない、Google Cloud / Google Workspace管理コ�
 2. 対象フォルダをブラウザで開き、URLの末尾（`https://drive.google.com/drive/folders/<ここがフォルダID>`）からフォルダIDを取得する
 3. サービスアカウントはドメイン全体委譲により対象ドメイン内のファイルにアクセスできるため、
    個別にサービスアカウントをフォルダの共有先に追加する必要は基本的にない
-   （委譲するユーザー＝フォルダ所有者をLambda側の実装で指定する。Phase Bで詳細確定）
+   （委譲するユーザー＝フォルダ所有者のメールアドレスを手順6でSSM Parameter Storeに登録する）
 
 ## 5. AWS側へのシークレット登録（Terraform apply後）
 
@@ -50,15 +50,23 @@ aws secretsmanager put-secret-value \
 rm path/to/downloaded-service-account-key.json
 ```
 
-## 6. フォルダIDのSSM Parameter Store登録・変更
+## 6. フォルダID・委譲先ユーザーのSSM Parameter Store登録・変更
 
-初期値はTerraform変数 `gdrive_sync_folder_id_parameter_default` で設定されるが、
-運用中の変更はTerraformを介さず以下で行う（コード変更・再デプロイ不要にするための設計）:
+初期値はそれぞれTerraform変数 `gdrive_sync_folder_id_parameter_default` /
+`gdrive_sync_impersonate_user_parameter_default` で設定されるが、運用中の変更はTerraformを
+介さず以下で行う（コード変更・再デプロイ不要にするための設計）:
 
 ```bash
 aws ssm put-parameter \
   --name "/<name_prefix>/gdrive-sync/folder-id" \
   --value "<新しいフォルダID>" \
+  --type String \
+  --overwrite
+
+# ドメイン全体委譲でなりすます対象ユーザー（通常は手順4のフォルダ所有者）のメールアドレス
+aws ssm put-parameter \
+  --name "/<name_prefix>/gdrive-sync/impersonate-user" \
+  --value "<フォルダ所有者のメールアドレス>" \
   --type String \
   --overwrite
 ```
