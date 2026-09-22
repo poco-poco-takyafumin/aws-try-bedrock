@@ -35,7 +35,7 @@ Phase A（インフラ骨格）はapply済み。Phase Bでは、プレースホ�
 （`modules/gdrive_sync`, `modules/backend`）に実際のロジックを実装し、実際に使えるチャットボットにする。
 
 - [x] Phase A: インフラ骨格一式（Knowledge Base / OpenSearch Serverless / Guardrails / IAM / ログ基盤）を`terraform apply`（2026-09-21）
-- [ ] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— サービスアカウント認証（ドメイン全体委譲・`drive.readonly`）→ 対象フォルダのファイル一覧取得 → S3バケットへ同期
+- [x] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— サービスアカウント認証（ドメイン全体委譲・`drive.readonly`）→ 対象フォルダのファイル一覧取得 → S3バケットへ同期（`terraform apply`・実機での動作確認はB-2で実施）
 - [ ] B-2. Knowledge Base取り込み動作確認（S3同期後のingestion job実行・文書が検索できることを確認）
 - [ ] B-3. チャットバックエンドLambda実装（`modules/backend/src/handler.py`）— `bedrock:RetrieveAndGenerate` + Guardrail呼び出し + citation付与
 - [ ] B-4. API Gateway認証方式の決定・実装（**未決事項・要ユーザー確認**。Phase Aは暫定でAWS_IAM認証。Slack/ChatUI/CLI/プログラムそれぞれに適した方式を設計する）
