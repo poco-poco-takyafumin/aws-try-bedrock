@@ -25,6 +25,14 @@
 
 | ユースケース | 要件詰め | 実装 |
 |---|---|---|
-| 01. 社内RAGチャットボット | 未着手 | 未着手 |
+| 01. 社内RAGチャットボット | 完了 | Phase A完了（Knowledge Base/Guardrails/IAM/ログ基盤、apply済み）。Phase B（チャットバックエンド・Google Drive同期の中身、API Gateway認証方式）は未着手 |
 | 02. SaaSバックエンド機能 | 未着手 | 未着手 |
 | 03. 開発者ツール | 未着手 | 未着手 |
+
+## 横断issue
+
+アカウント共通基盤に関わる、特定ユースケースに閉じないissue。
+
+| issue | 内容 | 状態 |
+|---|---|---|
+| [#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2) | Admin/Developer/Auditorロールのアカウント共通化を設計する | 未着手 |
