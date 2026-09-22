@@ -7,7 +7,7 @@
 - **複数ユースケース（01, 02, 03...）は単一AWSアカウントで運用する**（アカウント分離はしない）
   - 理由: 個人/家庭規模のPoCであり、複数アカウント（AWS Organizations等）のセットアップ・継続的な運用コストに見合わない
 - この決定に伴う実装上の含意:
-  - **アカウント×リージョン単位のシングルトンリソース**（Model invocation logging設定、CloudWatch Billing Alarm、Cost allocation tagのアクティブ化等）は、ユースケースごとに重複作成せず、**共有Terraformとして1箇所で管理する**。どのユースケースのTerraformにも属さない、アカウント共通の基盤として切り出すこと（未着手・下記7章の未決事項）
+  - **アカウント×リージョン単位のシングルトンリソース**（Model invocation logging設定、CloudWatch Billing Alarm、Cost allocation tagのアクティブ化等）は、ユースケースごとに重複作成せず、**共有Terraformとして1箇所で管理する**。どのユースケースのTerraformにも属さない、アカウント共通の基盤として切り出すこと（CloudWatch Billing Alarm・Cost allocation tagは切り出し済み、詳細は下記7章の未決事項）
   - Admin/Developer/Auditorロール（2章）も本来アカウント共通の型であり、将来的に共有moduleへ統合する。ユースケース01の実装では暫定的にユースケース名を含めた命名で個別作成しているが、これは正式な設計ではなく移行対象
   - 上記の共有化が完了するまでの間、各ユースケースの `requirements.md` / Terraformには「このリソースはアカウント全体のシングルトンである」旨を明記し、他ユースケースでの重複適用を防ぐこと
 

@@ -101,12 +101,10 @@ infra/
 │   └── backend/             # API Gateway + チャットバックエンドLambda（箱のみ、中身はPhase B）
 ```
 
-## 検証方法（このセッションで実施したこと）
-
-AWS認証情報が構成されていない前提のため、以下のみ実施した:
+## 検証方法
 
 - `terraform fmt -recursive`
 - `terraform init -backend=false` + `terraform validate`
+- `terraform plan` / `apply`: 人間レビュー必須モジュールのdiffを確認した上で実施済み（2026-09-21、apply成功）
 
-`terraform plan` / `apply` はAWS認証情報がある環境で、上記の人間レビュー必須モジュールの
-diffを確認した上で実行すること。
+再applyする場合も、上記の人間レビュー必須モジュールのdiffを確認した上で実行すること。

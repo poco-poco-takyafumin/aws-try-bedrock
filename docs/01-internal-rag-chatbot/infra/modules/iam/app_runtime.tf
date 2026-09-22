@@ -2,7 +2,7 @@
 # ★人間レビュー必須モジュール★ (CLAUDE.md: bedrock:InvokeModel系アクションの許可範囲)
 #
 # AppRuntimeロール = このユースケース専用（docs/00「1ユースケース=1ロール」原則）。
-# requirements.md確定のロール名 bedrock-approntime-internal-rag-chatbot を使用。
+# requirements.md確定のロール名 bedrock-appruntime-internal-rag-chatbot を使用。
 # 許可範囲は「このKnowledge Base」「jp.anthropic.*推論プロファイル」「指定Guardrail」に限定し、
 # 他のモデル・他ユースケースのリソースには一切触れない設計とする。
 # さらにdocs/00「IAM側での強制方法（bedrock:GuardrailIdentifier条件キーでのDeny）」に従い、

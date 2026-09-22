@@ -29,7 +29,7 @@ variable "environment" {
 variable "app_runtime_role_name" {
   description = "このユースケース専用のAppRuntime IAMロール名（requirements.mdで確定済み）。"
   type        = string
-  default     = "bedrock-approntime-internal-rag-chatbot"
+  default     = "bedrock-appruntime-internal-rag-chatbot"
 }
 
 variable "anthropic_model_id" {

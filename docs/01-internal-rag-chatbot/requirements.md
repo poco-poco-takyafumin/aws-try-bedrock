@@ -44,7 +44,7 @@
 
 ## IAMロール
 
-- このユースケース用AppRuntimeロール名: `bedrock-approntime-internal-rag-chatbot`
+- このユースケース用AppRuntimeロール名: `bedrock-appruntime-internal-rag-chatbot`
 - 呼び出し元（Lambda/ECS等）: **API Gateway + Lambda（サーバーレス）**を単一バックエンドとし、Slack app・チャットUI（Web）・CLI・プログラムからの呼び出しを一元的に受ける構成とする。各IFが個別にBedrockへ直接アクセスしない（docs/00の「1ユースケース=1ロール」原則、Guardrails適用・ログ記録の一元化のため）
 
 ## 採用リポジトリ・実装方針
