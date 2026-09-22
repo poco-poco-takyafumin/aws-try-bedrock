@@ -49,9 +49,11 @@ resource "aws_iam_role_policy" "this" {
         Resource = aws_ssm_parameter.gdrive_impersonate_user.arn
       },
       {
+        # s3:DeleteObjectは、Drive側でリネーム・削除されたファイルに対応する既存オブジェクトを
+        # 棚卸し削除するために必要（handler.py _delete_s3_keys参照）。
         Sid      = "WriteKbBucket"
         Effect   = "Allow"
-        Action   = ["s3:PutObject", "s3:ListBucket"]
+        Action   = ["s3:PutObject", "s3:ListBucket", "s3:DeleteObject"]
         Resource = [var.kb_bucket_arn, "${var.kb_bucket_arn}/*"]
       },
       {

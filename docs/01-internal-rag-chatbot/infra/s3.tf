@@ -74,6 +74,8 @@ resource "aws_s3_bucket_policy" "kb_data" {
         ]
       },
       {
+        # s3:DeleteObjectは、gdrive_syncがDrive側でリネーム・削除されたファイルに対応する
+        # 既存オブジェクトを棚卸し削除するために必要（modules/gdrive_sync/src/handler.py参照）。
         Sid    = "AllowGdriveSyncWrite"
         Effect = "Allow"
         Principal = {
@@ -81,7 +83,8 @@ resource "aws_s3_bucket_policy" "kb_data" {
         }
         Action = [
           "s3:PutObject",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:DeleteObject"
         ]
         Resource = [
           aws_s3_bucket.kb_data.arn,

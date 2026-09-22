@@ -132,11 +132,39 @@ def _s3_key_for(file_meta, relative_path):
     return relative_path
 
 
+def _list_existing_s3_keys():
+    """KB_BUCKET_NAME配下の全オブジェクトキーを返す。
+
+    このバケットはgdrive_syncの同期先専用（他の書き込み元を持たない。
+    infra/s3.tfのバケットポリシー参照）なので、バケット全体を同期管理対象として
+    扱ってよい。
+    """
+    keys = set()
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=KB_BUCKET_NAME):
+        for obj in page.get("Contents", []):
+            keys.add(obj["Key"])
+    return keys
+
+
+def _delete_s3_keys(keys):
+    keys = sorted(keys)
+    for i in range(0, len(keys), 1000):  # delete_objectsは1回最大1000件
+        batch = keys[i : i + 1000]
+        s3.delete_objects(
+            Bucket=KB_BUCKET_NAME,
+            Delete={"Objects": [{"Key": key} for key in batch]},
+        )
+
+
 def handler(event, context):
     drive_service = _build_drive_service()
     folder_id = ssm.get_parameter(Name=GDRIVE_FOLDER_ID_SSM)["Parameter"]["Value"]
 
     files = _list_files_recursive(drive_service, folder_id)
+    # ダウンロードに失敗したファイルのキーもcurrent_keysには含める。今回失敗しても
+    # Drive側にはまだ存在するファイルなので、後続の棚卸し削除で消してしまわないため。
+    current_keys = {_s3_key_for(file_meta, relative_path) for file_meta, relative_path in files}
 
     synced_keys = []
     failed_file_ids = []
@@ -163,8 +191,18 @@ def handler(event, context):
         )
         synced_keys.append(s3_key)
 
+    # Drive側でリネーム・削除されたファイルに対応する既存S3オブジェクトを棚卸し削除する
+    # （レビュー指摘対応: 以前はadd/overwriteのみで、リネーム・削除がKnowledge Base側に
+    # 反映されず古い内容が残り続けていた）。
+    stale_keys = _list_existing_s3_keys() - current_keys
+    if stale_keys:
+        _delete_s3_keys(stale_keys)
+
     logger.info(
-        "gdrive_sync complete: synced=%d failed=%d", len(synced_keys), len(failed_file_ids)
+        "gdrive_sync complete: synced=%d failed=%d deleted=%d",
+        len(synced_keys),
+        len(failed_file_ids),
+        len(stale_keys),
     )
 
     return {
@@ -172,6 +210,7 @@ def handler(event, context):
         "body": json.dumps(
             {
                 "synced_count": len(synced_keys),
+                "deleted_count": len(stale_keys),
                 "failed_count": len(failed_file_ids),
                 "synced_keys": synced_keys,
                 "failed_file_ids": failed_file_ids,
