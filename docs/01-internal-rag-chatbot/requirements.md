@@ -50,7 +50,7 @@
 ## 採用リポジトリ・実装方針
 
 - 土台とするリポジトリ: **`aws-samples/sample-bedrock-knowledge-base-terraform`**（S3/OpenSearch Serverless/Knowledge BaseのRAG構成）に確定
-- カスタマイズが必要な点:
+- カスタマイズが必要な点（**当初方針**。2026-09-23時点の現行方針は下記「データソース方針の見直し」を参照。Google Drive連携自体は撤回しておらず、将来のB-6候補として設計は維持する）:
   - データソースはPoC最小構成として **Google共有ドライブのみ**（Notionは対象外、将来拡張候補）
   - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
   - この同期処理を、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する想定
@@ -80,5 +80,5 @@
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
 - **Model invocation loggingのS3宛出力に未マスクPIIが残る残存リスク**（コードレビューで指摘）: CloudWatch Logs data protectionはCloudWatch Logs宛のみをマスクし、同等のS3自動マスキング機能は存在しない。現状の緩和策はS3読み取りをAuditorロールに限定することのみ。S3 Object Lambda等での再マスキングパイプライン追加を将来検討する
 - **CloudWatch Logs data protectionで日本の銀行口座番号・電話番号を検出できない残存ギャップ**（実装セッションでterraform apply失敗により発覚）: 当初`BankAccountNumber-JP`・`PhoneNumber-JP`をAWS管理データ識別子として指定していたが、AWS公式ドキュメント確認の結果、`BankAccountNumber`はDE/ES/FR/GB/IT/USのみ、`PhoneNumber`はBR/DE/ES/FR/GB/IT/USのみ対応でJPは非対応と判明（`SwiftCode`も管理識別子として存在せず削除）。Guardrails側は日本の銀行口座番号をカスタム正規表現でカバー済みだが、これはモデル入出力のみが対象でCloudWatch Logs宛の生ログには適用されない。CloudWatch Logs data protection policyの`CustomDataIdentifier`（カスタム正規表現）で同等のロジックを追加すれば解消可能（実装セッションのレビューで指摘済み、今回は追加せず残存ギャップとして受容。将来のセッションで追加を検討する）
-- **API Gatewayの認証方式**（コードレビューで指摘）: Phase Aでは暫定的にAWS_IAM認証を設定したが、Slack/チャットUI/CLI/プログラムそれぞれに適した実際の認証方式（Slack署名検証、APIキー、Cognito等）はPhase Bで設計・決定する
+- ~~**API Gatewayの認証方式**（コードレビューで指摘）~~ → **決定（2026-09-22、Phase Bセッションでユーザー確認済み）**: **APIキー方式**を採用。API Gatewayのusage plan/APIキーで呼び出し元を識別する。Slack app・ChatUI(Web)・CLI・プログラムいずれの呼び出し元にも同一方式を適用し、実装をシンプルに保つ（キー漏洩時の失効・ローテーションは呼び出し元ごとの運用課題として別途管理）。Phase Aの暫定AWS_IAM認証はB-4で置き換える
 - **複数環境（poc/prod等）の同時展開方針**（コードレビューで指摘）: `var.environment`はタグ付けにのみ使用しており、`local.name_prefix`（リソース名の素材）には含めていない。AWS側の名前長制約（Knowledge Base実行ロール名64文字上限、OpenSearch Serverlessコレクション名32文字上限）に既にほぼ余裕がないため。複数環境を同一AWSアカウントに同時展開する必要が生じた場合は、命名の短縮方針自体の見直しが必要
