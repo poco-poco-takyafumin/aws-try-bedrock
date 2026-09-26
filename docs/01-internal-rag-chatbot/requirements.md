@@ -59,7 +59,7 @@
   - Google Drive連携を将来導入する場合の同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
   - Google Drive連携を将来導入する場合のサービスアカウント秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
   - Google Drive連携を将来導入する場合のOAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
-  - Google Drive同期の初期運用は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
+  - Google Drive同期を将来導入する場合の初期運用は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
 
 ### データソース方針の見直し（2026-09-23、Phase Bセッションでユーザー確認済み）
 
