@@ -51,14 +51,24 @@
 
 - 土台とするリポジトリ: **`aws-samples/sample-bedrock-knowledge-base-terraform`**（S3/OpenSearch Serverless/Knowledge BaseのRAG構成）に確定
 - カスタマイズが必要な点:
-  - データソースはPoC最小構成として **Google共有ドライブのみ**（Notionは対象外、将来拡張候補）
-  - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
-  - この同期処理を、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する想定
-  - Google Drive連携の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**を採用
-  - 同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
-  - サービスアカウントの秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
-  - OAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
-  - 同期頻度: PoC初期は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
+  - データソースはPhase Bの動作確認中は **S3への手動アップロード** を採用する（Google Drive / Notion連携は将来拡張候補）
+  - Bedrock Knowledge BaseのデータソースはS3バケットとし、`aws s3 cp` 等で投入した文書をKnowledge Baseが取り込む前提で進める
+  - Google Drive同期を将来導入する場合は、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
+  - 上記の同期処理を導入する場合は、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する
+  - Google Drive連携を将来導入する場合の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**
+  - Google Drive連携を将来導入する場合の同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
+  - Google Drive連携を将来導入する場合のサービスアカウント秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
+  - Google Drive連携を将来導入する場合のOAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
+  - Google Drive同期を将来導入する場合の初期運用は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
+
+### データソース方針の見直し（2026-09-23、Phase Bセッションでユーザー確認済み）
+
+上記のGoogle Drive連携は**後回し**とし、Phase Bでは以下を優先する:
+
+- **データ投入方法をS3への手動アップロードに簡素化**する。`gdrive_sync` Lambda（同期パイプライン）を経由せず、`aws s3 cp` 等で対象文書を直接Knowledge BaseのS3データソースバケットに置く
+- 扱う文書の性質（銀行・保険・取扱説明書等のPIIを含む家庭の機密文書という想定）は変更しない。Guardrailsプロファイル方針（上記）・PII filters・Contextual grounding checkの設計判断はそのまま維持する。**接続方法（取り込み経路）のみ簡素化**し、まずRAGとしての動作確認を優先する
+- Google Drive同期（`modules/gdrive_sync`、issue #7 B-1、PR #8）の実装自体は破棄しない。PRはオープンのまま保留し、動作確認が済んだ段階で本格導入を再検討する（将来のB-6候補）
+- 理由: Google Workspaceのドメイン全体委譲設定など外部依存のセットアップ手順が重く、RAGパイプライン本体（Knowledge Base取り込み・チャットバックエンド）の動作確認を先に済ませたい
 
 ## アーキテクチャ
 
@@ -71,5 +81,5 @@
 - IaCツール統一・アカウント分離方針は `docs/00-architecture-overview.md` の全体未決事項として別管理（本ユースケース固有ではない）
 - **Model invocation loggingのS3宛出力に未マスクPIIが残る残存リスク**（コードレビューで指摘）: CloudWatch Logs data protectionはCloudWatch Logs宛のみをマスクし、同等のS3自動マスキング機能は存在しない。現状の緩和策はS3読み取りをAuditorロールに限定することのみ。S3 Object Lambda等での再マスキングパイプライン追加を将来検討する
 - **CloudWatch Logs data protectionで日本の銀行口座番号・電話番号を検出できない残存ギャップ**（実装セッションでterraform apply失敗により発覚）: 当初`BankAccountNumber-JP`・`PhoneNumber-JP`をAWS管理データ識別子として指定していたが、AWS公式ドキュメント確認の結果、`BankAccountNumber`はDE/ES/FR/GB/IT/USのみ、`PhoneNumber`はBR/DE/ES/FR/GB/IT/USのみ対応でJPは非対応と判明（`SwiftCode`も管理識別子として存在せず削除）。Guardrails側は日本の銀行口座番号をカスタム正規表現でカバー済みだが、これはモデル入出力のみが対象でCloudWatch Logs宛の生ログには適用されない。CloudWatch Logs data protection policyの`CustomDataIdentifier`（カスタム正規表現）で同等のロジックを追加すれば解消可能（実装セッションのレビューで指摘済み、今回は追加せず残存ギャップとして受容。将来のセッションで追加を検討する）
-- **API Gatewayの認証方式**（コードレビューで指摘）: Phase Aでは暫定的にAWS_IAM認証を設定したが、Slack/チャットUI/CLI/プログラムそれぞれに適した実際の認証方式（Slack署名検証、APIキー、Cognito等）はPhase Bで設計・決定する
+- ~~**API Gatewayの認証方式**（コードレビューで指摘）~~ → **決定（2026-09-22、Phase Bセッションでユーザー確認済み）**: **APIキー方式**を採用。API Gatewayのusage plan/APIキーで呼び出し元を識別する。Slack app・ChatUI(Web)・CLI・プログラムいずれの呼び出し元にも同一方式を適用し、実装をシンプルに保つ（キー漏洩時の失効・ローテーションは呼び出し元ごとの運用課題として別途管理）。Phase Aの暫定AWS_IAM認証はB-4で置き換える
 - **複数環境（poc/prod等）の同時展開方針**（コードレビューで指摘）: `var.environment`はタグ付けにのみ使用しており、`local.name_prefix`（リソース名の素材）には含めていない。AWS側の名前長制約（Knowledge Base実行ロール名64文字上限、OpenSearch Serverlessコレクション名32文字上限）に既にほぼ余裕がないため。複数環境を同一AWSアカウントに同時展開する必要が生じた場合は、命名の短縮方針自体の見直しが必要

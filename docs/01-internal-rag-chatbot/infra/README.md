@@ -6,9 +6,14 @@
 
 ## スコープ
 
-**Phase A（本実装）**: インフラ骨格一式をTerraformコードとして用意。`terraform apply`は未実施。
-**Phase B（別セッション予定）**: `modules/gdrive_sync` と `modules/backend` の中身（Python実装本体）。
-現状はどちらもプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。
+**Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
+**Phase B（進行中、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
+`modules/backend` の中身（Python実装本体）。進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--phase-b-todo)のTODOを参照。
+
+- **2026-09-23、方針転換**: Google Drive連携は後回しにし、まずS3への手動アップロードでRAGパイプライン
+  本体の動作確認を優先する（`requirements.md`の「データソース方針の見直し」参照）
+- `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックは実装済み（B-1、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)）だが、上記方針転換によりマージ・apply未実施のまま保留
+- `modules/backend`: 引き続きプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装予定
 
 ## ★人間レビュー必須モジュール（CLAUDE.mdより）
 
@@ -41,8 +46,8 @@
 - **Model invocation loggingのS3宛出力は未マスクPIIを含む**（コードレビューで指摘）。CloudWatch Logs
   data protectionはCloudWatch Logs宛のみに効く機能で、S3宛オブジェクトの同等の自動マスキング機能は
   AWSに存在しない。緩和策はS3読み取りをAuditorロールに限定することのみ（`requirements.md`未決事項参照）
-- **`modules/backend`のAPI Gatewayルートは暫定的にAWS_IAM認証**。Slack等の実際の呼び出し元に応じた
-  認証方式（署名検証・APIキー・Cognito等）はPhase Bで設計する（`requirements.md`未決事項参照）
+- **`modules/backend`のAPI GatewayルートはPhase A時点では暫定的にAWS_IAM認証**。
+  Phase BのB-4で **APIキー方式** に置き換える方針を決定済み（`requirements.md`参照）
 - **`modules/knowledge_base/opensearch.tf`のprovider "opensearch"ブロックは既知のTerraform制約**を持つ。
   初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
 
@@ -55,7 +60,8 @@
 ```bash
 cd docs/01-internal-rag-chatbot/infra
 
-# Google Workspace側の準備を先に行う（google-setup.md参照、手順1〜4）
+# Phase Bの現行方針では、まずS3へ文書を手動アップロードして動作確認する
+# Google Drive同期を導入する段階になったら、google-setup.md の手順1〜4を先に行う
 
 terraform init
 terraform fmt -recursive
@@ -75,7 +81,8 @@ terraform apply tfplan
 #   terraform apply -target=module.knowledge_base.aws_opensearchserverless_collection.resource_kb
 #   terraform apply
 
-# apply後、google-setup.md の手順5・6に従いシークレット・パラメータを登録する
+# Google Drive同期を導入する段階になったら、google-setup.md の手順5・6に従い
+# シークレット・パラメータを登録する
 ```
 
 ## タグ付け方針
