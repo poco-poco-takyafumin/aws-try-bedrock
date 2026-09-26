@@ -46,8 +46,8 @@
 - **Model invocation loggingのS3宛出力は未マスクPIIを含む**（コードレビューで指摘）。CloudWatch Logs
   data protectionはCloudWatch Logs宛のみに効く機能で、S3宛オブジェクトの同等の自動マスキング機能は
   AWSに存在しない。緩和策はS3読み取りをAuditorロールに限定することのみ（`requirements.md`未決事項参照）
-- **`modules/backend`のAPI Gatewayルートは暫定的にAWS_IAM認証**。Slack等の実際の呼び出し元に応じた
-  認証方式（署名検証・APIキー・Cognito等）はPhase Bで設計する（`requirements.md`未決事項参照）
+- **`modules/backend`のAPI GatewayルートはPhase A時点では暫定的にAWS_IAM認証**。
+  Phase BのB-4で **APIキー方式** に置き換える方針を決定済み（`requirements.md`参照）
 - **`modules/knowledge_base/opensearch.tf`のprovider "opensearch"ブロックは既知のTerraform制約**を持つ。
   初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
 
@@ -60,7 +60,8 @@
 ```bash
 cd docs/01-internal-rag-chatbot/infra
 
-# Google Workspace側の準備を先に行う（google-setup.md参照、手順1〜4）
+# Phase Bの現行方針では、まずS3へ文書を手動アップロードして動作確認する
+# Google Drive同期を導入する段階になったら、google-setup.md の手順1〜4を先に行う
 
 terraform init
 terraform fmt -recursive
@@ -80,7 +81,8 @@ terraform apply tfplan
 #   terraform apply -target=module.knowledge_base.aws_opensearchserverless_collection.resource_kb
 #   terraform apply
 
-# apply後、google-setup.md の手順5・6に従いシークレット・パラメータを登録する
+# Google Drive同期を導入する段階になったら、google-setup.md の手順5・6に従い
+# シークレット・パラメータを登録する
 ```
 
 ## タグ付け方針

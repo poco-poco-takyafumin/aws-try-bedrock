@@ -50,15 +50,16 @@
 ## 採用リポジトリ・実装方針
 
 - 土台とするリポジトリ: **`aws-samples/sample-bedrock-knowledge-base-terraform`**（S3/OpenSearch Serverless/Knowledge BaseのRAG構成）に確定
-- カスタマイズが必要な点（**当初方針**。2026-09-23時点の現行方針は下記「データソース方針の見直し」を参照。Google Drive連携自体は撤回しておらず、将来のB-6候補として設計は維持する）:
-  - データソースはPoC最小構成として **Google共有ドライブのみ**（Notionは対象外、将来拡張候補）
-  - Bedrock Knowledge BaseはGoogle Driveをネイティブ接続できない認識（2026年1月時点の知識、要最新確認）のため、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
-  - この同期処理を、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する想定
-  - Google Drive連携の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**を採用
-  - 同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
-  - サービスアカウントの秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
-  - OAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
-  - 同期頻度: PoC初期は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
+- カスタマイズが必要な点:
+  - データソースはPhase Bの動作確認中は **S3への手動アップロード** を採用する（Google Drive / Notion連携は将来拡張候補）
+  - Bedrock Knowledge BaseのデータソースはS3バケットとし、`aws s3 cp` 等で投入した文書をKnowledge Baseが取り込む前提で進める
+  - Google Drive同期を将来導入する場合は、`Google Drive API → 同期Lambda（手動実行）→ S3バケット → Knowledge Base(S3データソース)が取り込み` という同期パイプラインを挟む
+  - 上記の同期処理を導入する場合は、PIIマスキング・文書ごとのアクセス範囲タグ付けを行う場所として活用する
+  - Google Drive連携を将来導入する場合の認可方式: **Google Workspaceのサービスアカウント（ドメイン全体委譲）**
+  - Google Drive連携を将来導入する場合の同期対象フォルダの限定方法: **特定の共有ドライブ/フォルダID**を対象とする。フォルダID（非機密）はTerraformにハードコードせず、**SSM Parameter Store（String）**に格納し、LambdaがARN経由で参照する（コード変更・再デプロイなしにフォルダ変更可能にする）
+  - Google Drive連携を将来導入する場合のサービスアカウント秘密鍵（JSONキー、機密情報）は**AWS Secrets Manager**で保管する（Parameter Storeとは分離。資格情報はSecrets Managerに一元化）
+  - Google Drive連携を将来導入する場合のOAuthスコープは**読み取り専用（`drive.readonly`）**に限定する（最小権限の原則）
+  - Google Drive同期の初期運用は**手動実行**（EventBridge Schedulerによる自動化は導入しない）。運用が安定したら定期実行化を検討
 
 ### データソース方針の見直し（2026-09-23、Phase Bセッションでユーザー確認済み）
 
