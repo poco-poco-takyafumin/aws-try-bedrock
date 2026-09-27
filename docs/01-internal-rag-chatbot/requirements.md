@@ -74,7 +74,93 @@
 
 ## アーキテクチャ
 
-（要件確定後に構成図・詳細設計を追記。上記の採用リポジトリ・実装方針を参照）
+2026-09-27時点で `infra/` により構築済みの構成（S3 Vectors移行 #10 反映後）。点線は未実装・保留のもの、または補助的な関係。
+
+### 1. チャット・取り込みの流れ
+
+```mermaid
+flowchart LR
+    dev["Developer ロール<br/>CLI・プログラム"]
+    future["Slack app / チャットUI<br/>Phase B以降"]
+    uploader["管理者<br/>手動アップロード"]
+
+    subgraph aws["AWS アカウント ap-northeast-1"]
+        apigw["API Gateway HTTP API<br/>POST /chat・AWS_IAM認証"]
+        lambda["Backend Lambda<br/>AppRuntime ロール"]
+        gdrive["gdrive_sync Lambda<br/>保留: PR #8"]
+        kbdata[("S3 データソースバケット<br/>SSE-KMS")]
+
+        subgraph bedrock["Amazon Bedrock"]
+            kb["Knowledge Base<br/>KB実行ロール"]
+            guardrail["Guardrail"]
+            titan["Titan Embed Text v2<br/>1024次元"]
+            aip["Application Inference Profile<br/>CostCenter タグ"]
+            claude["Claude<br/>jp.anthropic.* JP Geo"]
+        end
+
+        vectors[("S3 Vectors<br/>ベクトルインデックス")]
+    end
+
+    dev -->|SigV4署名| apigw
+    future -.-> apigw
+    apigw --> lambda
+    lambda -->|RetrieveAndGenerate<br/>Guardrail指定必須| kb
+    kb --> guardrail
+    kb -->|ベクトル書き込み・検索| vectors
+    kb -->|回答生成| aip --> claude
+
+    uploader -->|aws s3 cp| kbdata
+    gdrive -.->|同期・保留| kbdata
+    kbdata -->|ingestion job| kb
+    kb -->|埋め込み| titan
+```
+
+### 2. ログ・監査・コスト
+
+```mermaid
+flowchart LR
+    subgraph aws["AWS アカウント ap-northeast-1"]
+        bedrock["Amazon Bedrock<br/>全API呼び出し"]
+
+        subgraph obs["ログ・監査"]
+            trail["CloudTrail<br/>マルチリージョン"]
+            invlog["Model invocation logging"]
+            cwl["CloudWatch Logs<br/>data protection でPIIマスク"]
+            logs3[("S3 ログバケット<br/>PII未マスク")]
+            kmslogs["KMS ログ用キー"]
+        end
+
+        subgraph cost["コスト管理"]
+            budget["AWS Budgets<br/>Bedrock月額のしきい値"]
+            ce["Cost Explorer<br/>CostCenter タグで集計"]
+        end
+    end
+
+    auditor["Auditor ロール"]
+    admin["Admin ロール"]
+    mail["通知メール"]
+
+    bedrock --> trail --> logs3
+    bedrock --> invlog
+    invlog --> cwl
+    invlog --> logs3
+    kmslogs -.->|暗号化| logs3
+    kmslogs -.->|暗号化| cwl
+    bedrock -.->|利用料| budget --> mail
+    bedrock -.->|利用料| ce
+
+    auditor -->|読み取り専用| logs3
+    auditor -->|読み取り専用| cwl
+    admin -->|設定管理| obs
+    admin -->|設定管理| cost
+```
+
+### 主要な流れ
+
+- **チャット（問い合わせ）**: 呼び出し元がSigV4署名付きで `POST /chat` を呼ぶ → Backend Lambdaが `bedrock:RetrieveAndGenerate` を実行する。AppRuntimeロールのIAMポリシーでGuardrail指定なしの呼び出しはDenyされ、生成モデルはコストタグ付きApplication Inference Profile（jp.anthropic.*）経由に限定される。Backend Lambdaの中身はPhase B（B-3）で実装予定で、現状は501を返すプレースホルダー
+- **取り込み**: 管理者がS3データソースバケットに文書を手動アップロード（PR #9の方針）→ ingestion jobでKnowledge BaseがTitan Embed v2で埋め込み、S3 Vectorsに書き込む。Google Drive同期（`gdrive_sync`）は保留
+- **ログ・監査**: CloudTrailとModel invocation loggingの出力を、ログ用KMSキーで暗号化したS3ログバケットとCloudWatch Logsに集約する。CloudWatch Logs側はdata protectionでPIIをマスクする（S3宛はマスクされない。未決事項参照）。読み取りはAuditorロールに限定
+- **コスト**: AWS BudgetsでAmazon Bedrockの月額利用料を監視し、しきい値超過でメール通知する。加えてApplication Inference Profileの`CostCenter`タグで、Cost Explorer上でユースケース単位に集計できるようにしている。ベクトルストアはS3 Vectors（従量課金）で、常時課金のリソースを持たない
 
 ## 未決事項
 
