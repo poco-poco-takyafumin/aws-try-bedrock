@@ -42,10 +42,11 @@
     `aws secretsmanager restore-secret --secret-id bedrock-rag01-gdrive-service-account-key --region ap-northeast-1` で復元してから
     `terraform import module.gdrive_sync.aws_secretsmanager_secret.gdrive_service_account <シークレットARN>` で取り込むか、2026-10-27以降に実施する
     （KMSキーは作り直すと新しいキーIDになり、エイリアスも削除済みのため影響なし）
-- **オープンのまま残っているIssue/PR**:
-  - Issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)（Phase B、B-2以降が未完了）— 再開時はここから
-  - PR [#8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)（B-1 Google Drive同期Lambda）
-  - Issue [#12](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/12) / PR [#13](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/13)（システム構成図。中止直前の構築済み構成を図示したもの）
+- **関連Issue/PRの整理**（2026-09-27、オープンのものは残っていない）:
+  - Issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)（Phase B）— 実施せずクローズ。再開する場合は下記TODOのB-2以降から新たに起票する
+  - PR [#8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)（B-1 Google Drive同期Lambda）— マージせずクローズ。同期処理の実装は`main`に入っておらず、
+    ブランチ`feat/07-internal-rag-chatbot-phase-b`にのみ残っている（`main`の`modules/gdrive_sync`はプレースホルダーのまま）
+  - Issue [#12](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/12) / PR [#13](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/13)（システム構成図）— マージ済み。中止直前の構築済み構成を`requirements.md`の「アーキテクチャ」節に図示
 - **再開時に最初に確認すること**（中止時点で判明していた課題）:
   - AppRuntimeロールに`bedrock:Retrieve`と、推論プロファイル経由で呼ばれる基盤モデルARNへの`bedrock:InvokeModel`がなく、B-3実装時にAccessDeniedになる可能性がある
   - CloudTrailは管理イベントのみ記録しており、Knowledge Baseの`Retrieve`／`RetrieveAndGenerate`（データイベント）は記録されない
@@ -62,12 +63,12 @@ RAGパイプライン本体（取り込み〜チャット応答）の動作確�
 
 - [x] Phase A: インフラ骨格一式（Knowledge Base / OpenSearch Serverless / Guardrails / IAM / ログ基盤）を`terraform apply`（2026-09-21）
 - [x] KBのベクトルストアをOpenSearch ServerlessからS3 Vectorsへ移行（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）— OpenSearch Serverlessの常時課金がコスト過大だったため。2026-09-27 apply済み（その後、中止に伴いdestroy）
-- [x] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— 実装済み・[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)はオープンのまま**保留**（方針転換によりGoogle連携は後回し。マージ・apply未実施）
+- [x] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— 実装済みだったが、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)はマージせずクローズ（実装はブランチ`feat/07-internal-rag-chatbot-phase-b`にのみ残存）
 - [ ] B-2. Knowledge Base取り込み動作確認 — `gdrive_sync`を待たず、**S3への手動アップロード**でサンプル文書を投入し、ingestion job実行・検索できることを確認する（方針転換により実施方法を変更）
 - [ ] B-3. チャットバックエンドLambda実装（`modules/backend/src/handler.py`）— `bedrock:RetrieveAndGenerate` + Guardrail呼び出し + citation付与
 - [ ] B-4. API Gateway認証方式の実装 — **APIキー方式に決定済み**（2026-09-22ユーザー確認）。Phase Aは暫定でAWS_IAM認証
 - [ ] B-5. E2E動作確認（S3に置いた文書をKnowledge Baseが検索し、チャットで質問して出典付きの回答が返ることを確認）
-- [ ] （将来検討）B-6. Google Drive同期の本格導入 — B-1で実装済みの`gdrive_sync`（PR #8）をベースに、B-2〜B-5の動作確認が済んだ段階で再検討
+- [ ] （将来検討）B-6. Google Drive同期の本格導入 — B-1で実装済みの`gdrive_sync`（クローズ済みPR #8のブランチ）をベースに、B-2〜B-5の動作確認が済んだ段階で再検討
 
 進め方の詳細は [`docs/01-internal-rag-chatbot/requirements.md`](./docs/01-internal-rag-chatbot/requirements.md)（未決事項含む）と
 [`docs/01-internal-rag-chatbot/infra/README.md`](./docs/01-internal-rag-chatbot/infra/README.md) を参照。
@@ -78,4 +79,4 @@ RAGパイプライン本体（取り込み〜チャット応答）の動作確�
 
 | issue | 内容 | 状態 |
 |---|---|---|
-| [#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2) | Admin/Developer/Auditorロールのアカウント共通化を設計する | 未着手 |
+| [#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2) | Admin/Developer/Auditorロールのアカウント共通化を設計する | 実施せずクローズ（2026-09-27、01の中止に伴い対象ロールもdestroy済み。02/03でロールを作る際に必要なら再起票） |

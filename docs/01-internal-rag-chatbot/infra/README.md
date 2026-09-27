@@ -12,12 +12,12 @@
 
 **Phase A（完了、その後destroy済み）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
 KBのベクトルストアは[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)でS3 Vectorsへ移行してapply済み（2026-09-27）。その後、中止に伴い全てdestroy。
-**Phase B（途中で中止、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
+**Phase B（途中で中止、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)は実施せずクローズ）**: `modules/gdrive_sync` と
 `modules/backend` の中身（Python実装本体）。中止時点の進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--中止時点の状態)を参照。
 
 - **2026-09-23、方針転換**: Google Drive連携は後回しにし、まずS3への手動アップロードでRAGパイプライン
   本体の動作確認を優先する（`requirements.md`の「データソース方針の見直し」参照）
-- `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックは実装済み（B-1、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)）だが、上記方針転換によりマージ・apply未実施のまま保留
+- `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックは実装済み（B-1、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)）だったが、マージせずクローズ（2026-09-27）。`main`のハンドラーはプレースホルダーのままで、実装はブランチ`feat/07-internal-rag-chatbot-phase-b`にのみ残っている
 - `modules/backend`: 中止時点でもプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装する予定だった
 
 ## ★人間レビュー必須モジュール（CLAUDE.mdより）
@@ -47,7 +47,7 @@ KBのベクトルストアは[#10](https://github.com/poco-poco-takyafumin/aws-t
   `docs/00-architecture-overview.md`の未決事項「アカウント分離するか」が解決するまでは、
   2つ目以降のユースケースでこのリソースを重複適用しないよう注意すること
 - **Admin/Developer/Auditorロールはユースケース名を含めた暫定命名**にしている（本来はアカウント共通の型）。
-  共通moduleへのリファクタリングは[#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2)で設計中
+  共通moduleへのリファクタリングを[#2](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/2)で検討していたが、中止に伴い実施せずクローズ
 - `var.anthropic_model_id`（jp.anthropic.*推論プロファイルのモデルID）はプレースホルダー値。
   apply前に `aws bedrock list-inference-profiles --region ap-northeast-1` 等で実在するIDに置き換えること
 - **Model invocation loggingのS3宛出力は未マスクPIIを含む**（コードレビューで指摘）。CloudWatch Logs
