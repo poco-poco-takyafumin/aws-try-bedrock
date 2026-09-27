@@ -13,7 +13,7 @@ output "kb_role_arn" {
   description = "Knowledge Base実行ロールのARN（S3バケットポリシーから参照）"
 }
 
-output "oss_collection_arn" {
-  value       = aws_opensearchserverless_collection.resource_kb.arn
-  description = "OpenSearch ServerlessコレクションのARN"
+output "vector_index_arn" {
+  value       = aws_s3vectors_index.resource_kb.index_arn
+  description = "S3 VectorsのベクトルインデックスARN"
 }

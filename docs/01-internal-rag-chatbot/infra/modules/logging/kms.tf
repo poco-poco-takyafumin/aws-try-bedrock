@@ -23,7 +23,7 @@ resource "aws_kms_key" "logs" {
         Resource = "*"
         Condition = {
           StringEquals = {
-            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
+            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.region}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
           }
         }
       },
@@ -49,7 +49,7 @@ resource "aws_kms_key" "logs" {
         Sid    = "AllowCloudWatchLogsEncrypt"
         Effect = "Allow"
         Principal = {
-          Service = "logs.${data.aws_region.this.name}.amazonaws.com"
+          Service = "logs.${data.aws_region.this.region}.amazonaws.com"
         }
         Action = [
           "kms:Encrypt*",
@@ -61,7 +61,7 @@ resource "aws_kms_key" "logs" {
         Resource = "*"
         Condition = {
           ArnLike = {
-            "kms:EncryptionContext:aws:logs:arn" = "arn:${data.aws_partition.this.partition}:logs:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:log-group:*"
+            "kms:EncryptionContext:aws:logs:arn" = "arn:${data.aws_partition.this.partition}:logs:${data.aws_region.this.region}:${data.aws_caller_identity.this.account_id}:log-group:*"
           }
         }
       }

@@ -65,7 +65,7 @@ resource "aws_s3_bucket_policy" "logs" {
         Condition = {
           StringEquals = {
             "s3:x-amz-acl"  = "bucket-owner-full-control"
-            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
+            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.region}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
           }
         }
       },
@@ -79,7 +79,7 @@ resource "aws_s3_bucket_policy" "logs" {
         Resource = aws_s3_bucket.logs.arn
         Condition = {
           StringEquals = {
-            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
+            "aws:SourceArn" = "arn:${data.aws_partition.this.partition}:cloudtrail:${data.aws_region.this.region}:${data.aws_caller_identity.this.account_id}:trail/${var.name_prefix}-trail"
           }
         }
       },

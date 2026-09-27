@@ -7,6 +7,7 @@
 ## スコープ
 
 **Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
+KBのベクトルストアはS3 Vectors移行（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）に伴い再作成する。
 **Phase B（進行中、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
 `modules/backend` の中身（Python実装本体）。進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--phase-b-todo)のTODOを参照。
 
@@ -22,6 +23,7 @@
 | モジュール | 該当理由 |
 |---|---|
 | `modules/iam` | IAMポリシー・ロールの新規作成/変更（`bedrock:InvokeModel`系アクションの許可範囲） |
+| `modules/knowledge_base` | KB実行ロールのIAMポリシー（埋め込みモデルの`bedrock:InvokeModel`・S3/KMS・`s3vectors`の許可範囲） |
 | `modules/guardrails` | Guardrailsの設定内容（Content filters・PII filters・Contextual grounding） |
 | `modules/logging` | ログ出力先（S3バケットポリシー・KMSキー・CloudWatch Logsアクセス権限） |
 | `modules/cost` | コスト管理設定（Budgetsしきい値・Application Inference Profileのタグ付け） |
@@ -33,8 +35,9 @@
 
 ## 既知の構成リスク・要判断事項
 
-- **OpenSearch Serverless network policyが`AllowFromPublic = true`**（土台リポジトリのデフォルト継承）。
-  アクセス制御はdata policyのprincipal限定で担保しており、VPC化はしていない。許容可否は実装レビュー時に判断する
+- **KBのベクトルストアはS3 Vectors**（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）。
+  土台リポジトリはOpenSearch Serverlessを使うが、最低OCU分が常時課金されPoC規模に対してコストが
+  過大だったため置き換えた。暗号化は既定のSSE-S3（旧OpenSearch ServerlessのAWS所有キーと同等）
 - **`aws_bedrock_model_invocation_logging_configuration`はアカウント×リージョン単位のシングルトン設定**。
   複数ユースケース(02, 03)を同一AWSアカウントに展開する場合、後から適用した方の設定で上書きされる。
   `docs/00-architecture-overview.md`の未決事項「アカウント分離するか」が解決するまでは、
@@ -48,8 +51,6 @@
   AWSに存在しない。緩和策はS3読み取りをAuditorロールに限定することのみ（`requirements.md`未決事項参照）
 - **`modules/backend`のAPI GatewayルートはPhase A時点では暫定的にAWS_IAM認証**。
   Phase BのB-4で **APIキー方式** に置き換える方針を決定済み（`requirements.md`参照）
-- **`modules/knowledge_base/opensearch.tf`のprovider "opensearch"ブロックは既知のTerraform制約**を持つ。
-  初回applyでエラーになる場合は下記デプロイ手順の2段階apply対応を参照
 
 ## デプロイ手順
 
@@ -75,11 +76,6 @@ terraform plan -out=tfplan
 # ↑ このplan出力の差分を、上記「人間レビュー必須モジュール」について必ず確認する
 
 terraform apply tfplan
-# ↑ 初回applyで「provider configuration value depends on resource attributes」相当の
-#   エラーが出た場合（modules/knowledge_base/opensearch.tfの既知の制約）は、
-#   先に以下でOpenSearch Serverlessコレクションだけ作成してから再度applyする:
-#   terraform apply -target=module.knowledge_base.aws_opensearchserverless_collection.resource_kb
-#   terraform apply
 
 # Google Drive同期を導入する段階になったら、google-setup.md の手順5・6に従い
 # シークレット・パラメータを登録する
@@ -99,7 +95,7 @@ infra/
 ├── providers.tf / variables.tf / outputs.tf / main.tf / s3.tf / kms.tf
 ├── google-setup.md      # Google Workspace側の手順書
 ├── modules/
-│   ├── knowledge_base/  # S3データソース + OpenSearch Serverless + Knowledge Base（土台リポジトリ移植）
+│   ├── knowledge_base/  # S3データソース + S3 Vectors + Knowledge Base（土台リポジトリ移植・改修）
 │   ├── iam/              # Developer/AppRuntime/Auditorロール
 │   ├── iam_admin/         # Adminロール（knowledge_baseとの循環依存を避けるため独立moduleに分離）
 │   ├── guardrails/        # Bedrock Guardrail

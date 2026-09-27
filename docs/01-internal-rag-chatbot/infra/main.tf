@@ -7,9 +7,8 @@ locals {
   jp_anthropic_system_profile_arn = "arn:${data.aws_partition.this.partition}:bedrock:${var.aws_region}:${data.aws_caller_identity.this.account_id}:inference-profile/jp.anthropic.${var.anthropic_model_id}"
 }
 
-# modules/knowledge_baseが必要とするadmin_principal_arnをmodules/iam（developer等）より
-# 先に、かつmodules/knowledge_baseに依存しない形で確定させるため独立モジュールに分離している
-# （modules/iam_admin側のコメント参照。循環依存の手組みARN回避）。
+# Adminロールはmodules/iam（developer等）から独立したモジュールに分離している
+# （経緯はmodules/iam_admin側のコメント参照）。
 module "iam_admin" {
   source = "./modules/iam_admin"
 
@@ -20,15 +19,14 @@ module "iam_admin" {
 module "knowledge_base" {
   source = "./modules/knowledge_base"
 
-  kb_name                = "${local.name_prefix}-kb"
-  kb_s3_bucket_name      = aws_s3_bucket.kb_data.bucket
-  kb_kms_key_arn         = aws_kms_key.kb_data.arn
-  kb_oss_collection_name = "${local.name_prefix}-oss"
-  kb_model_id            = var.kb_embedding_model_id
-  vector_dimension       = 1024
-  chunking_strategy      = "DEFAULT"
-  admin_principal_arn    = module.iam_admin.admin_role_arn
-  tags                   = local.common_tags
+  kb_name               = "${local.name_prefix}-kb"
+  kb_s3_bucket_name     = aws_s3_bucket.kb_data.bucket
+  kb_kms_key_arn        = aws_kms_key.kb_data.arn
+  kb_vector_bucket_name = "${local.name_prefix}-vectors"
+  kb_model_id           = var.kb_embedding_model_id
+  vector_dimension      = 1024
+  chunking_strategy     = "DEFAULT"
+  tags                  = local.common_tags
 }
 
 module "guardrails" {
