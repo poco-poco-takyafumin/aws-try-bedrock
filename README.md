@@ -35,11 +35,17 @@
 
 - **AWSリソース**: `docs/01-internal-rag-chatbot/infra` で作成したリソースは全て`terraform destroy`済み（stateは空）。
   ログ用S3バケットのCloudTrail・Model invocationログも中身ごと削除した。KMSキー2本とSecrets Managerのシークレット
-  （`bedrock-rag01-gdrive-service-account-key`、値は未登録）は削除待ちで、2026-10-27に自動削除される（削除待ち中は課金なし）
-- **コード**: Terraformコード・ドキュメントは残している。再開時は`infra/README.md`のデプロイ手順どおり`terraform apply`で再構築できる
-  （Knowledge Baseは空の状態で作られるため、文書の再投入が必要）
-- **オープンのまま残っているPR**: [#8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)（B-1 Google Drive同期Lambda）、
-  [#13](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/13)（システム構成図）
+  （`bedrock-rag01-gdrive-service-account-key`、値は未登録）は削除待ちで、2026-10-27に自動削除される
+- **コード**: Terraformコード・ドキュメントは残している。再開時は[`docs/01-internal-rag-chatbot/infra/README.md`](./docs/01-internal-rag-chatbot/infra/README.md)の
+  デプロイ手順どおり`terraform apply`で再構築できる（Knowledge Baseは空の状態で作られるため、文書の再投入が必要）
+  - **2026-10-27より前に再applyすると失敗する**: 同名のSecrets Managerシークレットが削除待ちのため作り直せない。
+    `aws secretsmanager restore-secret --secret-id bedrock-rag01-gdrive-service-account-key --region ap-northeast-1` で復元してから
+    `terraform import module.gdrive_sync.aws_secretsmanager_secret.gdrive_service_account <シークレットARN>` で取り込むか、2026-10-27以降に実施する
+    （KMSキーは作り直すと新しいキーIDになり、エイリアスも削除済みのため影響なし）
+- **オープンのまま残っているIssue/PR**:
+  - Issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)（Phase B、B-2以降が未完了）— 再開時はここから
+  - PR [#8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)（B-1 Google Drive同期Lambda）
+  - Issue [#12](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/12) / PR [#13](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/13)（システム構成図。中止直前の構築済み構成を図示したもの）
 - **再開時に最初に確認すること**（中止時点で判明していた課題）:
   - AppRuntimeロールに`bedrock:Retrieve`と、推論プロファイル経由で呼ばれる基盤モデルARNへの`bedrock:InvokeModel`がなく、B-3実装時にAccessDeniedになる可能性がある
   - CloudTrailは管理イベントのみ記録しており、Knowledge Baseの`Retrieve`／`RetrieveAndGenerate`（データイベント）は記録されない

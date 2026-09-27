@@ -10,15 +10,15 @@
 
 ## スコープ
 
-**Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
-KBのベクトルストアはS3 Vectors移行（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）に伴い再作成する。
+**Phase A（完了、その後destroy済み）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
+KBのベクトルストアは[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)でS3 Vectorsへ移行してapply済み（2026-09-27）。その後、中止に伴い全てdestroy。
 **Phase B（途中で中止、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
 `modules/backend` の中身（Python実装本体）。中止時点の進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--中止時点の状態)を参照。
 
 - **2026-09-23、方針転換**: Google Drive連携は後回しにし、まずS3への手動アップロードでRAGパイプライン
   本体の動作確認を優先する（`requirements.md`の「データソース方針の見直し」参照）
 - `modules/gdrive_sync`: サービスアカウント認証・S3同期ロジックは実装済み（B-1、[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)）だが、上記方針転換によりマージ・apply未実施のまま保留
-- `modules/backend`: 引き続きプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装予定
+- `modules/backend`: 中止時点でもプレースホルダーハンドラー（`src/handler.py`、501を返すだけ）。B-3で実装する予定だった
 
 ## ★人間レビュー必須モジュール（CLAUDE.mdより）
 
@@ -65,7 +65,7 @@ KBのベクトルストアはS3 Vectors移行（[#10](https://github.com/poco-po
 ```bash
 cd docs/01-internal-rag-chatbot/infra
 
-# Phase Bの現行方針では、まずS3へ文書を手動アップロードして動作確認する
+# 中止時点のPhase B方針では、まずS3へ文書を手動アップロードして動作確認する
 # Google Drive同期を導入する段階になったら、google-setup.md の手順1〜4を先に行う
 
 terraform init
@@ -113,6 +113,6 @@ infra/
 
 - `terraform fmt -recursive`
 - `terraform init -backend=false` + `terraform validate`
-- `terraform plan` / `apply`: 人間レビュー必須モジュールのdiffを確認した上で実施済み（2026-09-21、apply成功）
+- `terraform plan` / `apply`: 人間レビュー必須モジュールのdiffを確認した上で実施済み（2026-09-21 apply成功、2026-09-27 S3 Vectors移行をapply、同日中止に伴いdestroy）
 
 再applyする場合も、上記の人間レビュー必須モジュールのdiffを確認した上で実行すること。
