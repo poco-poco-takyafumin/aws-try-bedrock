@@ -4,12 +4,16 @@
 [`aws-samples/sample-bedrock-knowledge-base-terraform`](https://github.com/aws-samples/sample-bedrock-knowledge-base-terraform)
 （`modules/knowledge_base/` に移植・改修して取り込み済み）。
 
+> **2026-09-27、構築を中止**（[#14](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/14)）。このTerraformで作成したリソースは全て`terraform destroy`済み（stateは空）。
+> コードは再開用に残している。再開する場合は下記「デプロイ手順」で再構築する（Knowledge Baseは空で作られる）。
+> 詳細はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--中止時点の状態)を参照。
+
 ## スコープ
 
 **Phase A（完了）**: インフラ骨格一式をTerraformコードとして用意し、`terraform apply`済み（2026-09-21）。
 KBのベクトルストアはS3 Vectors移行（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）に伴い再作成する。
-**Phase B（進行中、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
-`modules/backend` の中身（Python実装本体）。進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--phase-b-todo)のTODOを参照。
+**Phase B（途中で中止、issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)）**: `modules/gdrive_sync` と
+`modules/backend` の中身（Python実装本体）。中止時点の進捗はリポジトリ直下の[README.md](../../../README.md#01-社内ragチャットボット--中止時点の状態)を参照。
 
 - **2026-09-23、方針転換**: Google Drive連携は後回しにし、まずS3への手動アップロードでRAGパイプライン
   本体の動作確認を優先する（`requirements.md`の「データソース方針の見直し」参照）
