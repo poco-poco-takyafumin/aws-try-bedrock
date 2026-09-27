@@ -50,6 +50,8 @@
 ## 採用リポジトリ・実装方針
 
 - 土台とするリポジトリ: **`aws-samples/sample-bedrock-knowledge-base-terraform`**（S3/OpenSearch Serverless/Knowledge BaseのRAG構成）に確定
+  - ただしベクトルストアはOpenSearch Serverlessではなく **S3 Vectors** を採用する（2026-09-26変更、[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）。OpenSearch Serverlessはデータ量・リクエスト量に関係なく最低OCU分が常時課金され、個人PoC規模に対してコストが過大だったため
+  - ベクトルバケットの暗号化は既定のSSE-S3とする（旧OpenSearch ServerlessのAWS所有キーと同等。データソースバケットはCMKだが、ベクトル側はコスト・構成の簡素さを優先。暗号化方式はバケット作成後に変更できないため、CMK化する場合はベクトルバケットの再作成が必要）
 - カスタマイズが必要な点:
   - データソースはPhase Bの動作確認中は **S3への手動アップロード** を採用する（Google Drive / Notion連携は将来拡張候補）
   - Bedrock Knowledge BaseのデータソースはS3バケットとし、`aws s3 cp` 等で投入した文書をKnowledge Baseが取り込む前提で進める
@@ -82,4 +84,4 @@
 - **Model invocation loggingのS3宛出力に未マスクPIIが残る残存リスク**（コードレビューで指摘）: CloudWatch Logs data protectionはCloudWatch Logs宛のみをマスクし、同等のS3自動マスキング機能は存在しない。現状の緩和策はS3読み取りをAuditorロールに限定することのみ。S3 Object Lambda等での再マスキングパイプライン追加を将来検討する
 - **CloudWatch Logs data protectionで日本の銀行口座番号・電話番号を検出できない残存ギャップ**（実装セッションでterraform apply失敗により発覚）: 当初`BankAccountNumber-JP`・`PhoneNumber-JP`をAWS管理データ識別子として指定していたが、AWS公式ドキュメント確認の結果、`BankAccountNumber`はDE/ES/FR/GB/IT/USのみ、`PhoneNumber`はBR/DE/ES/FR/GB/IT/USのみ対応でJPは非対応と判明（`SwiftCode`も管理識別子として存在せず削除）。Guardrails側は日本の銀行口座番号をカスタム正規表現でカバー済みだが、これはモデル入出力のみが対象でCloudWatch Logs宛の生ログには適用されない。CloudWatch Logs data protection policyの`CustomDataIdentifier`（カスタム正規表現）で同等のロジックを追加すれば解消可能（実装セッションのレビューで指摘済み、今回は追加せず残存ギャップとして受容。将来のセッションで追加を検討する）
 - ~~**API Gatewayの認証方式**（コードレビューで指摘）~~ → **決定（2026-09-22、Phase Bセッションでユーザー確認済み）**: **APIキー方式**を採用。API Gatewayのusage plan/APIキーで呼び出し元を識別する。Slack app・ChatUI(Web)・CLI・プログラムいずれの呼び出し元にも同一方式を適用し、実装をシンプルに保つ（キー漏洩時の失効・ローテーションは呼び出し元ごとの運用課題として別途管理）。Phase Aの暫定AWS_IAM認証はB-4で置き換える
-- **複数環境（poc/prod等）の同時展開方針**（コードレビューで指摘）: `var.environment`はタグ付けにのみ使用しており、`local.name_prefix`（リソース名の素材）には含めていない。AWS側の名前長制約（Knowledge Base実行ロール名64文字上限、OpenSearch Serverlessコレクション名32文字上限）に既にほぼ余裕がないため。複数環境を同一AWSアカウントに同時展開する必要が生じた場合は、命名の短縮方針自体の見直しが必要
+- **複数環境（poc/prod等）の同時展開方針**（コードレビューで指摘）: `var.environment`はタグ付けにのみ使用しており、`local.name_prefix`（リソース名の素材）には含めていない。AWS側の名前長制約（Knowledge Base実行ロール名64文字上限）に既にほぼ余裕がないため。複数環境を同一AWSアカウントに同時展開する必要が生じた場合は、命名の短縮方針自体の見直しが必要

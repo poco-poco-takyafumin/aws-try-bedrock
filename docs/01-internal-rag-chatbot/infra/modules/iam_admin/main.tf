@@ -9,13 +9,15 @@
 # （issue #2、requirements.mdにも未決事項として追記済み）。
 #
 # Adminロールをmodules/iamから独立したこのmoduleに分離している理由:
-# modules/knowledge_base（OpenSearchアクセスポリシーでAdminに管理アクセスを
-# 許可する）がAdminロールのARNを必要とする一方、modules/iam（Developer/
+# （注: ベクトルストアをS3 Vectorsへ移行した現在（Issue #10）、modules/knowledge_base
+# はAdminロールのARNを参照していない。以下は分離当時の経緯として残している）
+# 当時はmodules/knowledge_base（OpenSearchアクセスポリシーでAdminに管理アクセスを
+# 許可していた）がAdminロールのARNを必要とする一方、modules/iam（Developer/
 # AppRuntime/Auditor）はmodules/knowledge_baseの出力（knowledge_base_arn等）を
-# 必要とする。Adminロールの定義自体はknowledge_base側の出力に一切依存しない
-# ため、このmoduleを独立させることでmodules/knowledge_base → modules/iam_admin
-# の一方向の依存だけで済み、モジュール間の循環依存（および、それを回避するための
-# 手組みARN文字列）を避けられる。
+# 必要としていた。Adminロールの定義自体はknowledge_base側の出力に一切依存しない
+# ため、このmoduleを独立させることでモジュール間の循環依存（および、それを
+# 回避するための手組みARN文字列）を避けた。現在もmodules/iamから独立させておくことで、
+# 将来のアカウント共通moduleへの切り出し（#2）を行いやすくしている。
 # ============================================================================
 
 data "aws_caller_identity" "this" {}

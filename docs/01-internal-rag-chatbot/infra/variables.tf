@@ -88,7 +88,7 @@ locals {
     ManagedBy   = "terraform"
   }
 
-  # OpenSearch Serverlessのコレクション名（32文字上限）やBedrock Guardrail名（50文字上限）、
+  # Bedrock Guardrail名（50文字上限）やS3 Vectorsのベクトルバケット名（63文字上限）、
   # IAMロール名の上限（64文字、AWS側の固定プレフィックスと連結されるケースあり）等、
   # 名前長に厳しい制約を持つAWSリソースが多いため、素材名は短縮形にする
   # （project_name+use_case_nameをそのまま連結すると40文字になり、これらの上限を圧迫するため）。
@@ -96,8 +96,7 @@ locals {
   # レビュー指摘対応（既知の制限・意図的な設計判断）: var.environmentをここに含めていない。
   # 含めると、既に余裕がほぼないKnowledge Base実行ロール名
   # （"AmazonBedrockExecutionRoleForKnowledgeBase_" + kb_name ≤ 64文字、kb_name自体の
-  # 予算は20文字前後）やOpenSearch Serverlessコレクション名（32文字上限）の制約を
-  # 容易に超えてしまう。そのため現状は「1 AWSアカウント = 1環境」を前提とした設計とする。
+  # 予算は20文字前後）の制約を容易に超えてしまう。そのため現状は「1 AWSアカウント = 1環境」を前提とした設計とする。
   # 複数環境（poc/prod等）を同一アカウントに同時展開する必要が生じた場合は、
   # 単純にenvironmentを連結するのではなく、命名の短縮方針自体を見直すこと
   # （未決事項としてrequirements.mdに追記済み）。

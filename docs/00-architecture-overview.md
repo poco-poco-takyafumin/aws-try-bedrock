@@ -62,7 +62,7 @@
 実装時の出発点として検討する。採用可否・カスタマイズ方針は各ユースケースの `requirements.md` に記載する。
 
 - `aws-ia/terraform-aws-bedrock` — Bedrock公式Terraformモジュール（Guardrails/IAM/Knowledge Base対応）。共通土台の第一候補
-- `aws-samples/sample-bedrock-knowledge-base-terraform` — S3/OpenSearch Serverless/Knowledge BaseのRAG構成
+- `aws-samples/sample-bedrock-knowledge-base-terraform` — S3/OpenSearch Serverless/Knowledge BaseのRAG構成（OpenSearch Serverlessは最低OCU分が常時課金されるため、01ではベクトルストアをS3 Vectorsに置き換えて採用。[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）
 - `aws-samples/terraform-rag-template-using-amazon-bedrock` — アプリ組み込み寄りのRAGテンプレート
 - `aws-samples/sample-bedrock-guardrails-security-lake` — GuardrailsイベントのCloudWatch/Security Lake集約（CDK）
 - `aws-samples/detect-guardrails-not-used-on-amazon-bedrock-inference-calls` — Guardrails未使用呼び出しの検知

@@ -39,6 +39,7 @@ RAGパイプライン本体（取り込み〜チャット応答）の動作確�
 「データソース方針の見直し」参照）。扱う文書の性質（家庭の機密文書想定）・Guardrails方針は変更しない。
 
 - [x] Phase A: インフラ骨格一式（Knowledge Base / OpenSearch Serverless / Guardrails / IAM / ログ基盤）を`terraform apply`（2026-09-21）
+- [ ] KBのベクトルストアをOpenSearch ServerlessからS3 Vectorsへ移行（[#10](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/10)）— コスト過大のためOpenSearch Serverlessは2026-09-26に削除済み。KB・Backendは移行後のapplyで再作成（B-2の前提）
 - [x] B-1. Google Drive同期Lambda実装（`modules/gdrive_sync/src/handler.py`）— 実装済み・[PR #8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)はオープンのまま**保留**（方針転換によりGoogle連携は後回し。マージ・apply未実施）
 - [ ] B-2. Knowledge Base取り込み動作確認 — `gdrive_sync`を待たず、**S3への手動アップロード**でサンプル文書を投入し、ingestion job実行・検索できることを確認する（方針転換により実施方法を変更）
 - [ ] B-3. チャットバックエンドLambda実装（`modules/backend/src/handler.py`）— `bedrock:RetrieveAndGenerate` + Guardrail呼び出し + citation付与

@@ -1,12 +1,11 @@
 terraform {
   required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
     time = {
       source  = "hashicorp/time"
       version = "~> 0.11"
-    }
-    opensearch = {
-      source  = "opensearch-project/opensearch"
-      version = "= 2.2.0"
     }
   }
 }
@@ -14,7 +13,8 @@ terraform {
 # 土台: aws-samples/sample-bedrock-knowledge-base-terraform の modules/kb.tf を移植・改修。
 # 変更点:
 #  - S3バケットはルートモジュール(s3.tf)で作成したバケットを var.kb_s3_bucket_name で参照する
-#  - kb_name / kb_oss_collection_name は必須変数化（coalesceによる既定名を廃止し、命名を呼び出し側で一元管理）
+#  - ベクトルストアをOpenSearch ServerlessからS3 Vectorsに置き換え（s3vectors.tf、Issue #10）
+#  - kb_name / kb_vector_bucket_name は必須変数化（coalesceによる既定名を廃止し、命名を呼び出し側で一元管理）
 #  - kb_role_arn をoutputに追加（S3バケットポリシーで参照するため）
 
 data "aws_caller_identity" "this" {}
@@ -24,7 +24,7 @@ data "aws_region" "this" {}
 locals {
   account_id        = data.aws_caller_identity.this.account_id
   partition         = data.aws_partition.this.partition
-  region            = data.aws_region.this.name
+  region            = data.aws_region.this.region
   bedrock_model_arn = "arn:${local.partition}:bedrock:${local.region}::foundation-model/${var.kb_model_id}"
 }
 
@@ -105,19 +105,33 @@ resource "aws_iam_role_policy" "kb_execution_s3" {
   })
 }
 
-resource "aws_iam_role_policy" "kb_execution_oss" {
-  name = "AmazonBedrockOSSPolicyForKnowledgeBase_${var.kb_name}"
+resource "aws_iam_role_policy" "kb_execution_s3vectors" {
+  name = "AmazonBedrockS3VectorsPolicyForKnowledgeBase_${var.kb_name}"
   role = aws_iam_role.kb_execution.name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = "aoss:APIAccessAll"
+        Sid = "S3VectorsIndexAccessStatement"
+        Action = [
+          "s3vectors:GetIndex",
+          "s3vectors:PutVectors",
+          "s3vectors:GetVectors",
+          "s3vectors:DeleteVectors",
+          "s3vectors:QueryVectors"
+        ]
         Effect   = "Allow"
-        Resource = aws_opensearchserverless_collection.resource_kb.arn
+        Resource = aws_s3vectors_index.resource_kb.index_arn
       }
     ]
   })
+}
+
+# KB作成時にBedrockが実行ロールでベクトルインデックスへのアクセスを検証するため、
+# IAMポリシーの伝播を待ってからKBを作成する。
+resource "time_sleep" "kb_execution_s3vectors" {
+  create_duration = "20s"
+  depends_on      = [aws_iam_role_policy.kb_execution_s3vectors]
 }
 
 data "aws_s3_bucket" "resource_kb" {
@@ -130,8 +144,8 @@ resource "aws_bedrockagent_knowledge_base" "resource_kb" {
   knowledge_base_configuration {
     vector_knowledge_base_configuration {
       embedding_model_arn = local.bedrock_model_arn
-      # レビュー指摘対応: 以前はvar.vector_dimensionがOpenSearchのインデックスマッピング
-      # （opensearch.tf）にしか反映されておらず、Bedrock側の埋め込み設定と実際に紐付いて
+      # レビュー指摘対応: 以前はvar.vector_dimensionがベクトルストア側のインデックス定義
+      # にしか反映されておらず、Bedrock側の埋め込み設定と実際に紐付いて
       # いなかった（次元数を変更してもBedrock側はモデルの既定次元のままインデックス側と
       # 不一致になり得た）。embedding_model_configurationで明示的に指定して一致させる。
       embedding_model_configuration {
@@ -143,23 +157,16 @@ resource "aws_bedrockagent_knowledge_base" "resource_kb" {
     type = "VECTOR"
   }
   storage_configuration {
-    type = "OPENSEARCH_SERVERLESS"
-    opensearch_serverless_configuration {
-      collection_arn    = aws_opensearchserverless_collection.resource_kb.arn
-      vector_index_name = "bedrock-knowledge-base-default-index"
-      field_mapping {
-        vector_field   = "bedrock-knowledge-base-default-vector"
-        text_field     = "AMAZON_BEDROCK_TEXT_CHUNK"
-        metadata_field = "AMAZON_BEDROCK_METADATA"
-      }
+    type = "S3_VECTORS"
+    s3_vectors_configuration {
+      index_arn = aws_s3vectors_index.resource_kb.index_arn
     }
   }
   tags = var.tags
   depends_on = [
     aws_iam_role_policy.kb_execution_model,
     aws_iam_role_policy.kb_execution_s3,
-    opensearch_index.resource_kb,
-    time_sleep.kb_execution_oss
+    time_sleep.kb_execution_s3vectors
   ]
 }
 
