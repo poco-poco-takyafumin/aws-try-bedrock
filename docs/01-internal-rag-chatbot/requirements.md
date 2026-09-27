@@ -81,38 +81,39 @@
 ```mermaid
 flowchart LR
     dev["Developer ロール<br/>CLI・プログラム"]
-    future["Slack app / チャットUI<br/>Phase B以降"]
-    uploader["管理者<br/>手動アップロード"]
+    future["Slack app / チャットUI<br/>Phase B以降・APIキー認証に移行予定"]
+    uploader["管理者<br/>Terraform実行者のIAM権限"]
 
     subgraph aws["AWS アカウント ap-northeast-1"]
         apigw["API Gateway HTTP API<br/>POST /chat・AWS_IAM認証"]
-        lambda["Backend Lambda<br/>AppRuntime ロール"]
-        gdrive["gdrive_sync Lambda<br/>保留: PR #8"]
+        lambda["Backend Lambda<br/>AppRuntime ロール・中身は未実装"]
+        gdrive["gdrive_sync Lambda<br/>構築済み・同期処理は保留 PR #8"]
         kbdata[("S3 データソースバケット<br/>SSE-KMS")]
 
         subgraph bedrock["Amazon Bedrock"]
-            kb["Knowledge Base<br/>KB実行ロール"]
-            guardrail["Guardrail"]
+            kb["Knowledge Base"]
+            guardrail["Guardrail<br/>指定バージョン固定"]
             titan["Titan Embed Text v2<br/>1024次元"]
             aip["Application Inference Profile<br/>CostCenter タグ"]
             claude["Claude<br/>jp.anthropic.* JP Geo"]
         end
 
-        vectors[("S3 Vectors<br/>ベクトルインデックス")]
+        vectors[("S3 Vectors<br/>SSE-S3・本文チャンクを含む")]
     end
 
     dev -->|SigV4署名| apigw
     future -.-> apigw
     apigw --> lambda
-    lambda -->|RetrieveAndGenerate<br/>Guardrail指定必須| kb
+    lambda -->|RetrieveAndGenerate<br/>指定Guardrail必須| kb
     kb --> guardrail
-    kb -->|ベクトル書き込み・検索| vectors
-    kb -->|回答生成| aip --> claude
+    kb -->|回答生成<br/>AppRuntime の権限| aip --> claude
 
     uploader -->|aws s3 cp| kbdata
-    gdrive -.->|同期・保留| kbdata
-    kbdata -->|ingestion job| kb
-    kb -->|埋め込み| titan
+    uploader -->|StartIngestionJob 手動| kb
+    gdrive -.->|書き込み権限あり・未使用| kbdata
+    kbdata -->|取り込み<br/>KB実行ロール| kb
+    kb -->|埋め込み<br/>KB実行ロール| titan
+    kb -->|ベクトル書き込み・検索<br/>KB実行ロール| vectors
 ```
 
 ### 2. ログ・監査・コスト
@@ -120,18 +121,18 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph aws["AWS アカウント ap-northeast-1"]
-        bedrock["Amazon Bedrock<br/>全API呼び出し"]
+        bedrock["Amazon Bedrock"]
 
         subgraph obs["ログ・監査"]
-            trail["CloudTrail<br/>マルチリージョン"]
+            trail["CloudTrail<br/>マルチリージョン・管理イベントのみ"]
             invlog["Model invocation logging"]
-            cwl["CloudWatch Logs<br/>data protection でPIIマスク"]
+            cwl["CloudWatch Logs<br/>Model invocation ロググループ<br/>氏名・住所・メール・カード番号をマスク"]
             logs3[("S3 ログバケット<br/>PII未マスク")]
             kmslogs["KMS ログ用キー"]
         end
 
         subgraph cost["コスト管理"]
-            budget["AWS Budgets<br/>Bedrock月額のしきい値"]
+            budget["AWS Budgets<br/>アカウント全体のBedrock月額"]
             ce["Cost Explorer<br/>CostCenter タグで集計"]
         end
     end
@@ -140,8 +141,8 @@ flowchart LR
     admin["Admin ロール"]
     mail["通知メール"]
 
-    bedrock --> trail --> logs3
-    bedrock --> invlog
+    bedrock -->|管理イベント| trail --> logs3
+    bedrock -->|モデル呼び出し| invlog
     invlog --> cwl
     invlog --> logs3
     kmslogs -.->|暗号化| logs3
@@ -149,18 +150,18 @@ flowchart LR
     bedrock -.->|利用料| budget --> mail
     bedrock -.->|利用料| ce
 
-    auditor -->|読み取り専用| logs3
-    auditor -->|読み取り専用| cwl
+    auditor -->|読み取り| logs3
+    auditor -->|読み取り| cwl
     admin -->|設定管理| obs
     admin -->|設定管理| cost
 ```
 
 ### 主要な流れ
 
-- **チャット（問い合わせ）**: 呼び出し元がSigV4署名付きで `POST /chat` を呼ぶ → Backend Lambdaが `bedrock:RetrieveAndGenerate` を実行する。AppRuntimeロールのIAMポリシーでGuardrail指定なしの呼び出しはDenyされ、生成モデルはコストタグ付きApplication Inference Profile（jp.anthropic.*）経由に限定される。Backend Lambdaの中身はPhase B（B-3）で実装予定で、現状は501を返すプレースホルダー
-- **取り込み**: 管理者がS3データソースバケットに文書を手動アップロード（PR #9の方針）→ ingestion jobでKnowledge BaseがTitan Embed v2で埋め込み、S3 Vectorsに書き込む。Google Drive同期（`gdrive_sync`）は保留
-- **ログ・監査**: CloudTrailとModel invocation loggingの出力を、ログ用KMSキーで暗号化したS3ログバケットとCloudWatch Logsに集約する。CloudWatch Logs側はdata protectionでPIIをマスクする（S3宛はマスクされない。未決事項参照）。読み取りはAuditorロールに限定
-- **コスト**: AWS BudgetsでAmazon Bedrockの月額利用料を監視し、しきい値超過でメール通知する。加えてApplication Inference Profileの`CostCenter`タグで、Cost Explorer上でユースケース単位に集計できるようにしている。ベクトルストアはS3 Vectors（従量課金）で、常時課金のリソースを持たない
+- **チャット（問い合わせ）**: 呼び出し元がSigV4署名付きで `POST /chat` を呼ぶ → Backend Lambdaが `bedrock:RetrieveAndGenerate` を実行する。AppRuntimeロールのIAMポリシーで、指定Guardrail（指定バージョン）なしの呼び出しはDenyされる。生成モデルはjp.anthropic.*の推論プロファイル経由に限定され（基盤モデルARNの直接指定は不可）、コスト配分のためバックエンドはタグ付きApplication Inference Profile（`INFERENCE_PROFILE_ARN`）を指定する。回答生成は呼び出し元（AppRuntime）の権限で行われ、KB実行ロールが使うのは取り込み・埋め込み・ベクトル操作のみ。Backend Lambdaの中身はPhase B（B-3）で実装予定で、現状は501を返すプレースホルダー。API Gatewayの認証はB-4でAPIキー方式に置き換える予定
+- **取り込み**: 管理者（Terraform実行者のIAM権限。Adminロールには`s3:PutObject`・`bedrock:StartIngestionJob`がない）がS3データソースバケットに文書を手動アップロードし（PR #9の方針）、ingestion jobを手動で起動する → Knowledge BaseがTitan Embed v2で埋め込み、S3 Vectorsに書き込む。S3 Vectorsは既定のSSE-S3で、チャンク本文もメタデータとして保存される。`gdrive_sync` はLambda・IAMロール・Secrets Manager・SSMパラメータまで構築済みで、データソースバケットへの書き込み権限もあるが、同期処理は未実装（PR #8で保留）
+- **ログ・監査**: Model invocation loggingの出力を、ログ用KMSキーで暗号化したCloudWatch LogsとS3ログバケットに送る。CloudTrailは管理イベントのみ記録する。Knowledge Baseの`Retrieve`／`RetrieveAndGenerate`はCloudTrailではデータイベント扱いのため、現状は記録されない。data protectionでPIIをマスクするのはModel invocationのロググループだけで、対象は氏名・住所・メール・カード番号（日本の口座番号・電話番号は対象外。未決事項参照）。S3宛とLambdaのロググループはマスクされない。本構成で作成するロールのうち、ログの読み取り権限を持つのはAuditorのみ（明示的なDenyはないため、アカウントの管理者権限を持つIAMプリンシパルは読める）
+- **コスト**: AWS Budgetsで、アカウント全体のAmazon Bedrock利用料（サービスフィルタ）を監視し、しきい値超過でメール通知する。Claudeの利用料が請求上Marketplaceの別サービス名で計上される場合、このフィルタに含まれない可能性がある（Cost Explorerで要確認）。Application Inference Profileの`CostCenter`タグで、Cost Explorer上でユースケース単位に集計できる。ただしタグが付くのはAIP経由の呼び出しだけで、Titanの埋め込みは対象外。ベクトルストアはS3 Vectors（従量課金）で、常時課金のリソースを持たない
 
 ## 未決事項
 
