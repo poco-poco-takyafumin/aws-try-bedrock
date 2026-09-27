@@ -69,7 +69,8 @@
 
 - **データ投入方法をS3への手動アップロードに簡素化**する。`gdrive_sync` Lambda（同期パイプライン）を経由せず、`aws s3 cp` 等で対象文書を直接Knowledge BaseのS3データソースバケットに置く
 - 扱う文書の性質（銀行・保険・取扱説明書等のPIIを含む家庭の機密文書という想定）は変更しない。Guardrailsプロファイル方針（上記）・PII filters・Contextual grounding checkの設計判断はそのまま維持する。**接続方法（取り込み経路）のみ簡素化**し、まずRAGとしての動作確認を優先する
-- Google Drive同期（`modules/gdrive_sync`、issue #7 B-1、PR #8）の実装自体は破棄しない。PRはオープンのまま保留し、動作確認が済んだ段階で本格導入を再検討する（将来のB-6候補）。※構築中止に伴い、PR #8は2026-09-27にマージせずクローズ（実装はブランチ`feat/07-internal-rag-chatbot-phase-b`に残存）
+- Google Drive同期（`modules/gdrive_sync`、issue #7 B-1、PR #8）の実装自体は破棄しない。当時（2026-09-23時点）はPRをオープンのまま保留し、動作確認が済んだ段階で本格導入を再検討する方針だった（将来のB-6候補）
+  - → 2026-09-27、構築中止に伴いPR #8はマージせずクローズ（実装はブランチ`feat/07-internal-rag-chatbot-phase-b`に残存）
 - 理由: Google Workspaceのドメイン全体委譲設定など外部依存のセットアップ手順が重く、RAGパイプライン本体（Knowledge Base取り込み・チャットバックエンド）の動作確認を先に済ませたい
 
 ## アーキテクチャ

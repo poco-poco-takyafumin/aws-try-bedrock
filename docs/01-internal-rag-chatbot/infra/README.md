@@ -105,8 +105,8 @@ infra/
 │   ├── guardrails/        # Bedrock Guardrail
 │   ├── logging/            # CloudTrail + Model invocation logging + CloudWatch Logs data protection
 │   ├── cost/                # AWS Budgets + Application Inference Profile
-│   ├── gdrive_sync/         # Google Drive同期Lambda（箱のみ、中身はPhase B）
-│   └── backend/             # API Gateway + チャットバックエンドLambda（箱のみ、中身はPhase B）
+│   ├── gdrive_sync/         # Google Drive同期Lambda（箱のみ。実装はクローズ済みPR #8のブランチにのみ存在）
+│   └── backend/             # API Gateway + チャットバックエンドLambda（箱のみ。Phase Bで実装予定だったが中止）
 ```
 
 ## 検証方法

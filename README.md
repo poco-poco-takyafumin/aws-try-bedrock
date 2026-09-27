@@ -45,7 +45,7 @@
 - **関連Issue/PRの整理**（2026-09-27、オープンのものは残っていない）:
   - Issue [#7](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/7)（Phase B）— 実施せずクローズ。再開する場合は下記TODOのB-2以降から新たに起票する
   - PR [#8](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/8)（B-1 Google Drive同期Lambda）— マージせずクローズ。同期処理の実装は`main`に入っておらず、
-    ブランチ`feat/07-internal-rag-chatbot-phase-b`にのみ残っている（`main`の`modules/gdrive_sync`はプレースホルダーのまま）
+    ブランチ`feat/07-internal-rag-chatbot-phase-b`にのみ残っている（`main`の`docs/01-internal-rag-chatbot/infra/modules/gdrive_sync`はプレースホルダーのまま）
   - Issue [#12](https://github.com/poco-poco-takyafumin/aws-try-bedrock/issues/12) / PR [#13](https://github.com/poco-poco-takyafumin/aws-try-bedrock/pull/13)（システム構成図）— マージ済み。中止直前の構築済み構成を`requirements.md`の「アーキテクチャ」節に図示
 - **再開時に最初に確認すること**（中止時点で判明していた課題）:
   - AppRuntimeロールに`bedrock:Retrieve`と、推論プロファイル経由で呼ばれる基盤モデルARNへの`bedrock:InvokeModel`がなく、B-3実装時にAccessDeniedになる可能性がある
