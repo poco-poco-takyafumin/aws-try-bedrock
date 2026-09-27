@@ -69,12 +69,13 @@
 
 - **データ投入方法をS3への手動アップロードに簡素化**する。`gdrive_sync` Lambda（同期パイプライン）を経由せず、`aws s3 cp` 等で対象文書を直接Knowledge BaseのS3データソースバケットに置く
 - 扱う文書の性質（銀行・保険・取扱説明書等のPIIを含む家庭の機密文書という想定）は変更しない。Guardrailsプロファイル方針（上記）・PII filters・Contextual grounding checkの設計判断はそのまま維持する。**接続方法（取り込み経路）のみ簡素化**し、まずRAGとしての動作確認を優先する
-- Google Drive同期（`modules/gdrive_sync`、issue #7 B-1、PR #8）の実装自体は破棄しない。PRはオープンのまま保留し、動作確認が済んだ段階で本格導入を再検討する（将来のB-6候補）
+- Google Drive同期（`modules/gdrive_sync`、issue #7 B-1、PR #8）の実装自体は破棄しない。当時（2026-09-23時点）はPRをオープンのまま保留し、動作確認が済んだ段階で本格導入を再検討する方針だった（将来のB-6候補）
+  - → 2026-09-27、構築中止に伴いPR #8はマージせずクローズ（実装はブランチ`feat/07-internal-rag-chatbot-phase-b`に残存）
 - 理由: Google Workspaceのドメイン全体委譲設定など外部依存のセットアップ手順が重く、RAGパイプライン本体（Knowledge Base取り込み・チャットバックエンド）の動作確認を先に済ませたい
 
 ## アーキテクチャ
 
-2026-09-27時点で `infra/` により構築済みの構成（S3 Vectors移行 #10 反映後）。点線は未実装・保留のもの、または補助的な関係。
+2026-09-27の中止直前に `infra/` で構築していた構成（S3 Vectors移行 #10 反映後）。**現在は全てdestroy済み**。点線は未実装・保留のもの、または補助的な関係。
 
 ### 1. チャット・取り込みの流れ
 
@@ -87,7 +88,7 @@ flowchart LR
     subgraph aws["AWS アカウント ap-northeast-1"]
         apigw["API Gateway HTTP API<br/>POST /chat・AWS_IAM認証"]
         lambda["Backend Lambda<br/>AppRuntime ロール・中身は未実装"]
-        gdrive["gdrive_sync Lambda<br/>構築済み・同期処理は保留 PR #8"]
+        gdrive["gdrive_sync Lambda<br/>構築済み・同期処理は未実装"]
         kbdata[("S3 データソースバケット<br/>SSE-KMS")]
 
         subgraph bedrock["Amazon Bedrock"]
@@ -159,7 +160,7 @@ flowchart LR
 ### 主要な流れ
 
 - **チャット（問い合わせ）**: 呼び出し元がSigV4署名付きで `POST /chat` を呼ぶ → Backend Lambdaが `bedrock:RetrieveAndGenerate` を実行する。AppRuntimeロールのIAMポリシーで、指定Guardrail（指定バージョン）なしの呼び出しはDenyされる。生成モデルはjp.anthropic.*の推論プロファイル経由に限定され（基盤モデルARNの直接指定は不可）、コスト配分のためバックエンドはタグ付きApplication Inference Profile（`INFERENCE_PROFILE_ARN`）を指定する。回答生成は呼び出し元（AppRuntime）の権限で行われ、KB実行ロールが使うのは取り込み・埋め込み・ベクトル操作のみ。Backend Lambdaの中身はPhase B（B-3）で実装予定で、現状は501を返すプレースホルダー。API Gatewayの認証はB-4でAPIキー方式に置き換える予定
-- **取り込み**: 管理者（Terraform実行者のIAM権限。Adminロールには`s3:PutObject`・`bedrock:StartIngestionJob`がない）がS3データソースバケットに文書を手動アップロードし（PR #9の方針）、ingestion jobを手動で起動する → Knowledge BaseがTitan Embed v2で埋め込み、S3 Vectorsに書き込む。S3 Vectorsは既定のSSE-S3で、チャンク本文もメタデータとして保存される。`gdrive_sync` はLambda・IAMロール・Secrets Manager・SSMパラメータまで構築済みで、データソースバケットへの書き込み権限もあるが、同期処理は未実装（PR #8で保留）
+- **取り込み**: 管理者（Terraform実行者のIAM権限。Adminロールには`s3:PutObject`・`bedrock:StartIngestionJob`がない）がS3データソースバケットに文書を手動アップロードし（PR #9の方針）、ingestion jobを手動で起動する → Knowledge BaseがTitan Embed v2で埋め込み、S3 Vectorsに書き込む。S3 Vectorsは既定のSSE-S3で、チャンク本文もメタデータとして保存される。`gdrive_sync` はLambda・IAMロール・Secrets Manager・SSMパラメータまで構築済みで、データソースバケットへの書き込み権限もあるが、同期処理は`main`では未実装（実装はクローズ済みPR #8のブランチにのみ存在）
 - **ログ・監査**: Model invocation loggingの出力を、ログ用KMSキーで暗号化したCloudWatch LogsとS3ログバケットに送る。CloudTrailは管理イベントのみ記録する。Knowledge Baseの`Retrieve`／`RetrieveAndGenerate`はCloudTrailではデータイベント扱いのため、現状は記録されない。data protectionでPIIをマスクするのはModel invocationのロググループだけで、対象は氏名・住所・メール・カード番号（日本の口座番号・電話番号は対象外。未決事項参照）。S3宛とLambdaのロググループはマスクされない。本構成で作成するロールのうち、ログの読み取り権限を持つのはAuditorのみ（明示的なDenyはないため、アカウントの管理者権限を持つIAMプリンシパルは読める）
 - **コスト**: AWS Budgetsで、アカウント全体のAmazon Bedrock利用料（サービスフィルタ）を監視し、しきい値超過でメール通知する。Claudeの利用料が請求上Marketplaceの別サービス名で計上される場合、このフィルタに含まれない可能性がある（Cost Explorerで要確認）。Application Inference Profileの`CostCenter`タグで、Cost Explorer上でユースケース単位に集計できる。ただしタグが付くのはAIP経由の呼び出しだけで、Titanの埋め込みは対象外。ベクトルストアはS3 Vectors（従量課金）で、常時課金のリソースを持たない
 
